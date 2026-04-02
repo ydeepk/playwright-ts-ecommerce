@@ -1,26 +1,37 @@
-// load the tools
-import {test, expect} from '@playwright/test';
+// Import Playwright test runner utilities
+// 'test' defines test blocks, 'expect' is used for assertions
+import { test, expect } from '@playwright/test';
 
-// verify add to cart functionality
-test('add to cart functionality', async({page}) => {
 
-    // goto URL
+// ==========================
+// Test: Verify Add to Cart functionality
+// ==========================
+test('add to cart functionality', async ({ page }) => {
+
+    // Navigate to the ecommerce application
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
 
-    // find size S and choose it
+    // Select product size 'S'
+    // Using text-based locator here, but note: this is not very stable if multiple 'S' elements exist
+    // In real projects, prefer scoped locator within a product card or use test-id
     await page.getByText('S').first().click();
     
-    // find add to cart and click it
+    // Click on "Add to cart" button
+    // Again using first() assumes the first product is selected → risky if UI order changes
     await page.getByText('Add to cart').first().click();
 
-    // locate the sidebar, that has a button named 'Checkout' inside it
+    // Identify cart sidebar container
+    // Strategy: find a container that uniquely contains the 'Checkout' button
+    // This scopes all further validations within the correct UI section
     const sidebar = page.locator('div').filter({
-        has: page.getByRole('button',{ name: 'Checkout'})
+        has: page.getByRole('button', { name: 'Checkout' })
     });
 
-    // Verify title 'Cart' inside specific container
+    // Validate that Cart title is visible → confirms cart UI is opened/updated
     await expect(sidebar.locator('span').getByText('Cart')).toBeVisible();
     
-    // Verify cart total is anything but $ 0.00, since we have items in the cart.
+    // Validate that cart total is NOT $0.00
+    // This is a business validation ensuring item was added successfully
+    // Using negative assertion here instead of exact value keeps test flexible
     await expect(sidebar.getByText('$ 0.00')).not.toBeVisible();
 });
