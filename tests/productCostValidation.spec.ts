@@ -1,12 +1,16 @@
 // Import Playwright test runner utilities
 // 'test' defines test cases, 'expect' is used for assertions
 import { test, expect } from '@playwright/test';
+import { CartPage } from '../pages/cartPage';
 
 
 // ==========================
 // Test: Product cost validation (end-to-end flow)
 // ==========================
 test('product cost validation', async ({ page }) => {
+
+    const cartPage = new CartPage(page);
+
 
     // Step 1: Navigate to ecommerce application
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
@@ -26,19 +30,6 @@ test('product cost validation', async ({ page }) => {
     // Text-based locator works but role-based or test-id would be more stable
     await productCard.getByText('Add to cart').click();
 
-
-    // Step 4: Identify cart sidebar
-    // Strategy: locate container that includes close button ("X")
-    // This scopes all validations within the cart UI
-    const sidebar = page.locator('div').filter({
-        has: page.getByRole('button', { name: 'X' })
-    }).last();
-
-    // Validate correct product is present in cart
-    await expect(sidebar.getByText('Tropical Wine T-shirt')).toBeVisible();
-
-    // Step 5: Validate subtotal value
-    // Regex used to handle exact match with special characters ($ and decimal)
-    // This is a strong business validation (not just UI presence)
-    await expect(sidebar.getByText(/\$ 134\.90/)).toBeVisible();
+    await cartPage.verifyProductAdded('Tropical Wine T-shirt');
+    await cartPage.verifySubTotal('$ 134.90');
 });
