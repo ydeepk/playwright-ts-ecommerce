@@ -30,6 +30,6 @@ test('product cost validation', async ({ page }) => {
     // Text-based locator works but role-based or test-id would be more stable
     await productCard.getByText('Add to cart').click();
 
-    await cartPage.verifyProductAdded('Tropical Wine T-shirt');
-    await cartPage.verifySubTotal('$ 134.90');
+    await cartPage.verifyProductInCart('Tropical Wine T-shirt');
+    await cartPage.verifySubtotal('$ 134.90');
 });
