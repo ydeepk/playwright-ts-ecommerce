@@ -7,7 +7,7 @@ This repository demonstrates a transition from basic script-writing to a **Produ
 
 ---
 
-## 🛠️ Phase 1: Robust Locators & Scoping (Completed)
+## 🛠️ Phase 1: Robust Locators & Scoping
 **Core Focus:** Solving the "Flakiness" that kills 90% of automation projects.
 * **Anchor-Based Filtering:** Solved **Strict Mode Violations** by using parent-child scoping. Instead of searching the whole page, we isolate specific containers (e.g., finding a unique "Product Card" in a grid of 16).
 * **Semantic Selectors:** Eliminated brittle CSS/XPath selectors. Implemented **User-Centric Locators** (Roles, Text, Labels) that align with how a human interacts with the web.
@@ -15,7 +15,7 @@ This repository demonstrates a transition from basic script-writing to a **Produ
 
 ---
 
-## 🏗️ Phase 2: Design Patterns & Scaling (Current)
+## 🏗️ Phase 2: Design Patterns & Scaling
 **Core Focus:** Architectural integrity for 100+ test suites.
 * **Page Object Model (POM):** Decoupling **Test Logic** from **UI Locators**. All selectors and actions are moved into Class-based libraries.
     * *Interview Value:* Demonstrates an understanding of **DRY (Don't Repeat Yourself)** principles.
@@ -24,7 +24,7 @@ This repository demonstrates a transition from basic script-writing to a **Produ
 
 ---
 
-## 📡 Phase 3: API & Advanced Workflows (Upcoming)
+## 📡 Phase 3: API & Advanced Workflows
 **Core Focus:** Moving beyond the "Surface" of the browser.
 * **API Interception & Mocking:** Using `page.route` to intercept network calls, verify JSON payloads, and mock server responses for faster, isolated testing.
 * **Authentication State Persistence:** Implementation of `storageState` to bypass login flows for every test, cutting execution time by up to 50%.
