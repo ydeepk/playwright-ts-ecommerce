@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 test('add to cart functionality', async ({ page }) => {
 
     // Navigate to the ecommerce application
-    await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
+    await page.goto('/');
 
     // Select product size 'S'
     // Using text-based locator here, but note: this is not very stable if multiple 'S' elements exist

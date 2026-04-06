@@ -5,7 +5,7 @@ import {test, expect} from '@playwright/test';
 test('Verify page title', async({page}) => {
 
     // goto URL
-    await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
+    await page.goto('/');
 
     // check if page has the right title
     await expect(page).toHaveTitle(/Typescript React Shopping cart/);

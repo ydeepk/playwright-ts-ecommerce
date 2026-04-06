@@ -54,7 +54,7 @@ test('find specific product another way', async ({ page }) => {
     console.log('Test 2');
 
     // Navigate to the ecommerce demo site
-    await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
+    await page.goto('/');
 
     // Directly locate product using text filter and chain button locator
     // Faster to write but less controlled compared to scoped locator approach
