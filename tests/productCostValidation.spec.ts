@@ -1,7 +1,7 @@
 // Import Playwright test runner utilities
 // 'test' defines test cases, 'expect' is used for assertions
 import { test, expect } from '@playwright/test';
-import { CartPage } from '../pages/cartPage';
+import { CartPage } from '../pages/CartPage';
 
 
 // ==========================
