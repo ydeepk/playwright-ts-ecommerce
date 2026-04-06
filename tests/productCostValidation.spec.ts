@@ -13,7 +13,7 @@ test('product cost validation', async ({ page }) => {
 
 
     // Step 1: Navigate to ecommerce application
-    await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
+    await page.goto('/');
 
     // Step 2: Apply filter for size "L"
     // Using exact match to avoid partial matches (e.g., "XL")
