@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 import { CartPage } from '../pages/CartPage';
 import { ProductPage } from '../pages/ProductPage';
 
-// Import test data (data-driven testing)
+// Import test data for data-driven testing
 import * as data from '../data/products.json';
 
 
@@ -18,8 +18,19 @@ for (const product of data.testData) {
         const cartPage = new CartPage(page);
         const productPage = new ProductPage(page);
 
+        // Prepare to capture products API response
+        const productsResponsePromise = page.waitForResponse('**/products.json');
+
         // Navigate to base URL (configured in playwright.config.ts)
         await page.goto('/');
+
+        // Resolve API response and parse JSON
+        const productsResponse = await productsResponsePromise;
+        const productsData = await productsResponse.json();
+
+        console.log(
+            `LOG: Intercepted ${productsData.products.length} products for ${product.name}`
+        );
 
         // Select product size
         await productPage.selectSize(product.size);
@@ -30,8 +41,11 @@ for (const product of data.testData) {
         // Validate product presence in cart
         await cartPage.verifyProductInCart(product.name);
 
-        // Validate subtotal
+        // Validate subtotal value
         await cartPage.verifySubtotal(product.price);
+
+        // Wait for network to be idle (stability step)
+        await page.waitForLoadState('networkidle');
     });
 }
 
@@ -53,14 +67,14 @@ test('product cost validation', async ({ page }) => {
     // Locate product card using text-based filtering
     const productCard = page.locator('div')
         .filter({
-            has: page.getByText('Tropical Wine T-shirt')
+            has: page.getByText('Tropical Wine T-shirt'),
         })
         .last(); // Used due to multiple matches (not ideal for long-term)
 
     // Click "Add to cart" within selected product
     await productCard.getByText('Add to cart').click();
 
-    // Validate product and subtotal in cart
+    // Validate product presence and subtotal in cart
     await cartPage.verifyProductInCart('Tropical Wine T-shirt');
     await cartPage.verifySubtotal('$ 134.90');
 });
