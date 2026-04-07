@@ -9,7 +9,7 @@ export class ProductPage {
     // Playwright page instance
     private readonly page: Page;
 
-    // Size filter section
+    // Size filter container (scoped to avoid global matches)
     private readonly sizeFilterSection: Locator;
 
     // ==========================
@@ -18,8 +18,7 @@ export class ProductPage {
     constructor(page: Page) {
         this.page = page;
 
-        // Scope to size filter container instead of using global 'span'
-        // Improves locator stability and avoids accidental matches
+        // Scope size filters to label elements for better stability
         this.sizeFilterSection = this.page.locator('label');
     }
 
@@ -29,7 +28,7 @@ export class ProductPage {
 
     /**
      * Select product size dynamically (e.g. S, M, L, XL)
-     * Avoid hardcoding → reusable + data-driven friendly
+     * @param size - size value to select
      */
     async selectSize(size: string): Promise<void> {
         await this.sizeFilterSection
@@ -43,19 +42,23 @@ export class ProductPage {
      */
     async addProductToCart(productName: string): Promise<void> {
 
-        // Locate product card by product name
-        // filter + hasText scopes correctly but still not ideal if duplicates exist
-        const productCard = this.page.locator('div')
-            .filter({ hasText: productName })
-            .first(); // safer than last(), still not perfect
+        // Locate product card containing the given product name
+        // Scoped within main container to reduce incorrect matches
+        const productCard = this.page.locator('main >> div')
+            .filter({
+                has: this.page.locator('p', { hasText: productName })
+            })
+            .last();
 
-        // Click "Add to cart" within the scoped product card
+        // Click "Add to cart" button within the located product card
         await productCard.getByRole('button', { name: 'Add to cart' }).click();
     }
 
     /**
-     * Combined action: select size + add product
-     * Useful for test readability
+     * Combined action: select size and add product to cart
+     * Improves readability in test cases
+     * @param productName - product to add
+     * @param size - size to select
      */
     async addProductWithSize(productName: string, size: string): Promise<void> {
         await this.selectSize(size);
