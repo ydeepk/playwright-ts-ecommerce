@@ -97,6 +97,9 @@ export class PIMPage {
     }
 
     async deleteEmployeeById(employeeId: string): Promise<void> {
+
+        await this.searchEmployeeById(employeeId);
+        
         // Locate the employee row in results table
         const employeeRow = this.page
             .locator('.oxd-table-row')
@@ -110,6 +113,8 @@ export class PIMPage {
         await this.page
             .getByRole('button', { name: 'Yes, Delete' })
             .click();
+
+        await this.page.getByText('Successfully Deleted').waitFor({state: 'hidden'})
     }
 
     async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {

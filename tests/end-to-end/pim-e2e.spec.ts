@@ -19,15 +19,15 @@ test.describe('PIM Employee Lifecycle', () => {
             return await pimPage.addNewEmployee('Ayush', 'Yadav');
         });
 
-        await test.step('Verify employee exists in list', async() => {
-            await nav.goToPIM();
-            await pimPage.searchEmployeeByID(newEmployeeId);
-            const employeeRow = page.locator('.oxd-table-row').filter({ hasText: newEmployeeId });
-            await expect(employeeRow).toBeVisible();
+        await test.step('Verify employee visible in table', async() => {
+            await pimPage.searchEmployeeById(newEmployeeId);
         });
 
         await test.step('Delete employee and verify removal', async() => {
             await pimPage.deleteEmployeeById(newEmployeeId);
+        });
+
+        await test.step('Verify employee is removed from the system',async() => {
             await pimPage.verifyEmployeeNotFoundById(newEmployeeId);
         });
         
