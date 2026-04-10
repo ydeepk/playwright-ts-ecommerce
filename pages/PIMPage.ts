@@ -1,134 +1,93 @@
-// Import Playwright core types and assertion utility
 import { Page, Locator, expect } from '@playwright/test';
 
 export class PIMPage {
     private readonly page: Page;
-
-    // Buttons used across PIM workflows
     private readonly addEmployeeButton: Locator;
     private readonly saveButton: Locator;
     private readonly searchButton: Locator;
     private readonly resetButton: Locator;
-
-    // Input fields for employee data
     private readonly firstNameInput: Locator;
     private readonly lastNameInput: Locator;
-    private readonly employeeIdInput: Locator;
 
     constructor(page: Page) {
         this.page = page;
-
-        // Initialize button locators (role-based for better readability and resilience)
         this.addEmployeeButton = page.getByRole('button', { name: 'Add' });
-        this.saveButton = page.getByRole('button', { name: 'Save' });
+        this.saveButton = page.locator('button[type="submit"]');
         this.searchButton = page.getByRole('button', { name: 'Search' });
         this.resetButton = page.getByRole('button', { name: 'Reset' });
-
-        // Initialize input field locators
         this.firstNameInput = page.getByPlaceholder('First Name');
         this.lastNameInput = page.getByPlaceholder('Last Name');
-
-        // Employee ID field inside search form
-        // Note: index-based locator is fragile if DOM structure changes
-        this.employeeIdInput = page.locator('form').getByRole('textbox').nth(1);
     }
 
-    // ==========================
-    // Actions
-    // ==========================
+    private getEmployeeRow(employeeId: string): Locator {
+        return this.page.locator('.oxd-table-card').filter({ hasText: employeeId });
+    }
 
     async addNewEmployee(firstName: string, lastName: string): Promise<string> {
-        // Open "Add Employee" form
-        await this.addEmployeeButton.click();
+    await this.addEmployeeButton.click();
+    await this.firstNameInput.fill(firstName);
+    await this.lastNameInput.fill(lastName);
 
-        // Fill mandatory employee details
-        await this.firstNameInput.fill(firstName);
-        await this.lastNameInput.fill(lastName);
+    const idInput = this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input');
+    await expect(idInput).not.toHaveValue('', { timeout: 10000 });
+    const generatedId = await idInput.inputValue();
 
-        // Capture auto-generated employee ID before saving
-        // Important: ID is generated dynamically by UI
-        const generatedEmployeeId = await this.page
-            .locator('form')
-            .getByRole('textbox')
-            .nth(0)
-            .inputValue();
+    await this.saveButton.click();
 
-        // Submit employee creation form
-        await this.saveButton.click();
-
-        // Validate successful navigation to employee details page
-        // Ensures form submission did not silently fail
-        await expect(this.page).toHaveURL(/.*viewPersonalDetails/);
-
-        return generatedEmployeeId;
-    }
+    // FINAL FIX: Instead of crashing if the toast is missed, 
+    // we just wait for the URL change. If the URL changes to PersonalDetails, 
+    // we KNOW it saved successfully.
+    await expect(this.page).toHaveURL(/.*viewPersonalDetails/, { timeout: 20000 });
+    
+    return generatedId;
+}
 
     async searchEmployeeById(employeeId: string): Promise<void> {
-        // Reset any existing filters to avoid false results
+        if (!this.page.url().includes('viewEmployeeList')) {
+            await this.page.goto('https://opensource-demo.orangehrmlive.com/web/index.php/pim/viewEmployeeList');
+        }
         await this.resetButton.click();
-
-        // Enter employee ID in search field
-        // Uses label-based filtering (fragile if UI text changes)
-        await this.page
-            .locator('div')
-            .filter({ hasText: /^Employee Id$/ })
-            .locator('input')
-            .fill(employeeId);
-
-        // Trigger search action
+        await this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input').fill(employeeId);
         await this.searchButton.click();
-
-        // Validate employee appears in search results
-        await this.verifyEmployeeIsVisible(employeeId);
-
-        // Wait for network activity to settle
-        // Note: not always reliable for modern frontend frameworks
-        await this.page.waitForLoadState('networkidle');
-    }
-
-    async verifyEmployeeIsVisible(employeeId: string): Promise<void> {
-        // Locate table row containing the employee ID
-        const employeeRow = this.page
-            .locator('.oxd-table-row')
-            .filter({ hasText: employeeId });
-
-        // Assert visibility to confirm search success
-        await expect(employeeRow).toBeVisible();
+        
+        // Wait for specific ID text to appear in the table body
+        await expect(this.page.locator('.oxd-table-body')).toContainText(employeeId, { timeout: 10000 });
     }
 
     async deleteEmployeeById(employeeId: string): Promise<void> {
+    await this.searchEmployeeById(employeeId);
+    const employeeRow = this.getEmployeeRow(employeeId);
+    await expect(employeeRow).toHaveCount(1);
+    
+    await employeeRow.locator('button i.bi-trash').click();
+    await this.page.getByRole('button', { name: 'Yes, Delete' }).click();
+    
+    // Wait for the deletion toast to disappear
+    const toast = this.page.getByText('Successfully Deleted');
+    await expect(toast).toBeVisible();
+    await expect(toast).toBeHidden();
 
-        await this.searchEmployeeById(employeeId);
-        
-        // Locate the employee row in results table
-        const employeeRow = this.page
-            .locator('.oxd-table-row')
-            .filter({ hasText: employeeId });
+    // FINAL PIECE: After deleting, we must click Search again 
+    // to confirm the table updates to "No Records Found"
+    await this.searchButton.click();
+}
 
-        // Click delete icon (assumes first button is delete action)
-        // Risk: breaks if button order changes
-        await employeeRow.getByRole('button').first().click();
+async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {
+    // 1. Wait for any potential loading spinners to disappear
+    await this.page.locator('.oxd-loading-spinner').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
 
-        // Confirm deletion in modal/dialog
-        await this.page
-            .getByRole('button', { name: 'Yes, Delete' })
-            .click();
+    // 2. Check for "No Records Found" anywhere in the main content area
+    // We use a specific class that OrangeHRM uses for the empty state span
+    const noRecordsMessage = this.page.locator('.orangehrm-horizontal-padding > .oxd-text--span');
+    
+    // We expect this to eventually show "No Records Found"
+    await expect(noRecordsMessage).toHaveText('No Records Found', { timeout: 10000 });
 
-        await this.page.getByText('Successfully Deleted').waitFor({state: 'hidden'})
-    }
+    // 3. Absolute confirmation: The row with our ID must not exist
+    const employeeRow = this.getEmployeeRow(employeeId);
+    await expect(employeeRow).toHaveCount(0);
 
-    async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {
-        // Attempt to locate employee row (should not exist)
-        const employeeRow = this.page
-            .locator('.oxd-table-row')
-            .filter({ hasText: employeeId });
+    console.log(`Success: Employee ${employeeId} is officially gone from the system.`);
+}
 
-        // Assert employee is not visible in table
-        await expect(employeeRow).not.toBeVisible();
-
-        // Validate "No Records Found" message is displayed
-        // Confirms empty result state is handled correctly
-        const noRecordsMessage = this.page.getByText('No Records Found');
-        await expect(noRecordsMessage).toBeVisible();
-    }
 }
