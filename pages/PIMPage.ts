@@ -1,16 +1,32 @@
 import { Page, Locator, expect } from '@playwright/test';
 
 export class PIMPage {
-    private readonly page: Page;
-    private readonly addEmployeeButton: Locator;
-    private readonly saveButton: Locator;
-    private readonly searchButton: Locator;
-    private readonly resetButton: Locator;
-    private readonly firstNameInput: Locator;
-    private readonly lastNameInput: Locator;
 
+    // ==========================
+    // Properties
+    // ==========================
+
+    // Playwright Page instance for interacting with the PIM module
+    private readonly page: Page;
+
+    // UI action buttons
+    private readonly addEmployeeButton: Locator; // Triggers employee creation flow
+    private readonly saveButton: Locator;        // Submits employee form
+    private readonly searchButton: Locator;      // Executes employee search
+    private readonly resetButton: Locator;       // Clears search filters
+
+    // Employee input fields
+    private readonly firstNameInput: Locator;    // Input for employee first name
+    private readonly lastNameInput: Locator;     // Input for employee last name
+
+    // ==========================
+    // Constructor
+    // ==========================
     constructor(page: Page) {
+        // Initialize Playwright page reference
         this.page = page;
+
+        // Initialize UI element locators using accessible roles and placeholders
         this.addEmployeeButton = page.getByRole('button', { name: 'Add' });
         this.saveButton = page.locator('button[type="submit"]');
         this.searchButton = page.getByRole('button', { name: 'Search' });
@@ -19,75 +35,126 @@ export class PIMPage {
         this.lastNameInput = page.getByPlaceholder('Last Name');
     }
 
+    /**
+     * Returns a locator for a specific employee row based on employee ID
+     * Uses text filtering to match the correct table row
+     * @param employeeId - Unique identifier of the employee
+     */
     private getEmployeeRow(employeeId: string): Locator {
         return this.page.locator('.oxd-table-card').filter({ hasText: employeeId });
     }
 
+    /**
+     * Adds a new employee and returns the auto-generated employee ID
+     * Relies on URL change as a stable success indicator instead of transient UI elements
+     * @param firstName - Employee's first name
+     * @param lastName - Employee's last name
+     * @returns Generated employee ID
+     */
     async addNewEmployee(firstName: string, lastName: string): Promise<string> {
-    await this.addEmployeeButton.click();
-    await this.firstNameInput.fill(firstName);
-    await this.lastNameInput.fill(lastName);
+        // Navigate to add employee form
+        await this.addEmployeeButton.click();
 
-    const idInput = this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input');
-    await expect(idInput).not.toHaveValue('', { timeout: 10000 });
-    const generatedId = await idInput.inputValue();
+        // Fill mandatory fields
+        await this.firstNameInput.fill(firstName);
+        await this.lastNameInput.fill(lastName);
 
-    await this.saveButton.click();
+        // Locate Employee ID input dynamically based on label grouping
+        const idInput = this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input');
 
-    // FINAL FIX: Instead of crashing if the toast is missed, 
-    // we just wait for the URL change. If the URL changes to PersonalDetails, 
-    // we KNOW it saved successfully.
-    await expect(this.page).toHaveURL(/.*viewPersonalDetails/, { timeout: 20000 });
-    
-    return generatedId;
-}
+        // Wait until system-generated ID is populated
+        await expect(idInput).not.toHaveValue('', { timeout: 10000 });
 
+        // Capture generated employee ID for later validation
+        const generatedId = await idInput.inputValue();
+
+        // Submit the form
+        await this.saveButton.click();
+
+        // Validate successful save via URL change instead of relying on toast notifications
+        await expect(this.page).toHaveURL(/.*viewPersonalDetails/, { timeout: 20000 });
+
+        return generatedId;
+    }
+
+    /**
+     * Searches for an employee using their ID
+     * Ensures navigation to correct page and resets filters before searching
+     * @param employeeId - Employee ID to search for
+     */
     async searchEmployeeById(employeeId: string): Promise<void> {
+        // Ensure correct page context before performing search
         if (!this.page.url().includes('viewEmployeeList')) {
             await this.page.goto('https://opensource-demo.orangehrmlive.com/web/index.php/pim/viewEmployeeList');
         }
+
+        // Reset any existing filters to ensure clean search state
         await this.resetButton.click();
+
+        // Enter employee ID into search field
         await this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input').fill(employeeId);
+
+        // Trigger search action
         await this.searchButton.click();
-        
-        // Wait for specific ID text to appear in the table body
+
+        // Validate that the table contains the expected employee ID
         await expect(this.page.locator('.oxd-table-body')).toContainText(employeeId, { timeout: 10000 });
     }
 
+    /**
+     * Deletes an employee based on employee ID
+     * Includes validation of deletion via toast and table refresh
+     * @param employeeId - Employee ID to delete
+     */
     async deleteEmployeeById(employeeId: string): Promise<void> {
-    await this.searchEmployeeById(employeeId);
-    const employeeRow = this.getEmployeeRow(employeeId);
-    await expect(employeeRow).toHaveCount(1);
-    
-    await employeeRow.locator('button i.bi-trash').click();
-    await this.page.getByRole('button', { name: 'Yes, Delete' }).click();
-    
-    // Wait for the deletion toast to disappear
-    const toast = this.page.getByText('Successfully Deleted');
-    await expect(toast).toBeVisible();
-    await expect(toast).toBeHidden();
 
-    // FINAL PIECE: After deleting, we must click Search again 
-    // to confirm the table updates to "No Records Found"
-    await this.searchButton.click();
-}
+        // Search for the target employee first
+        await this.searchEmployeeById(employeeId);
 
-async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {
-    // 1. Wait for any potential loading spinners to disappear
-    await this.page.locator('.oxd-loading-spinner').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+        // Locate the specific employee row
+        const employeeRow = this.getEmployeeRow(employeeId);
 
-    // 2. Check for "No Records Found" anywhere in the main content area
-    // We use a specific class that OrangeHRM uses for the empty state span
-    const noRecordsMessage = this.page.locator('.orangehrm-horizontal-padding > .oxd-text--span');
-    
-    // We expect this to eventually show "No Records Found"
-    await expect(noRecordsMessage).toHaveText('No Records Found', { timeout: 10000 });
+        // Ensure exactly one matching record is found
+        await expect(employeeRow).toHaveCount(1);
 
-    // 3. Absolute confirmation: The row with our ID must not exist
-    const employeeRow = this.getEmployeeRow(employeeId);
-    await expect(employeeRow).toHaveCount(0);
+        // Click delete icon within the row
+        await employeeRow.locator('button i.bi-trash').click();
 
-    console.log(`Success: Employee ${employeeId} is officially gone from the system.`);
-}
+        // Confirm deletion in modal dialog
+        await this.page.getByRole('button', { name: 'Yes, Delete' }).click();
 
+        // Validate deletion via toast notification visibility lifecycle
+        const toast = this.page.getByText('Successfully Deleted');
+        await expect(toast).toBeVisible();
+        await expect(toast).toBeHidden();
+
+        // Re-run search to refresh table state after deletion
+        await this.searchButton.click();
+    }
+
+    /**
+     * Verifies that an employee is no longer present in the system
+     * Combines UI empty state validation with strict row absence check
+     * @param employeeId - Employee ID expected to be absent
+     */
+    async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {
+
+        // Wait for any loading indicators to disappear to ensure stable DOM state
+        await this.page.locator('.oxd-loading-spinner')
+            .waitFor({ state: 'detached', timeout: 5000 })
+            .catch(() => {});
+
+        // Locate "No Records Found" message in the UI
+        const noRecordsMessage = this.page.locator('.orangehrm-horizontal-padding > .oxd-text--span');
+
+        // Validate empty state message
+        await expect(noRecordsMessage).toHaveText('No Records Found', { timeout: 10000 });
+
+        // Confirm that no row exists with the given employee ID
+        const employeeRow = this.getEmployeeRow(employeeId);
+        await expect(employeeRow).toHaveCount(0);
+
+        // Log confirmation for debugging and traceability
+        console.log(`Success: Employee ${employeeId} is officially gone from the system.`);
+    }
 }
