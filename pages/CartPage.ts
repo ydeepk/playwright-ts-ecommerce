@@ -6,42 +6,46 @@ export class CartPage {
     // Properties
     // ===========================
 
-    // Playwright page instance
+    // Playwright Page instance used for cart interactions
     private readonly page: Page;
 
-    // Main cart container (sidebar)
+    // Root container representing the cart sidebar/modal
     private readonly cartContainer: Locator;
 
-    // Key elements inside cart
-    private readonly checkoutButton: Locator;
-    private readonly closeButton: Locator;
-    private readonly cartTitle: Locator;
+    // Primary cart actions
+    private readonly checkoutButton: Locator; // Initiates checkout flow
+    private readonly closeButton: Locator;    // Closes cart sidebar
+    private readonly cartTitle: Locator;      // Cart header/title element
 
-    // subtotal inside subsection
-    private readonly subtotalSection: Locator;
+    // Pricing section
+    private readonly subtotalSection: Locator; // Container holding subtotal information
 
     // ==========================
     // Constructor
     // ==========================
     constructor(page: Page) {
+        // Initialize Playwright page reference
         this.page = page;
 
-        // Use "Checkout" button as stable anchor to uniquely identify cart
+        // Identify cart container using Checkout button as a stable anchor element
         this.cartContainer = this.page.locator('div')
             .filter({
                 has: this.page.getByRole('button', { name: 'Checkout' })
             })
             .first();
 
-        // Scope all elements within cart container
+        // Scope all cart-related elements within the cart container for stability
         this.checkoutButton = this.cartContainer
-                                    .getByRole('button', { name: 'Checkout' });
+            .getByRole('button', { name: 'Checkout' });
+
         this.closeButton = this.cartContainer
-                                    .getByRole('button', { name: 'X' });
+            .getByRole('button', { name: 'X' });
+
         this.cartTitle = this.cartContainer
-                                    .getByText('Cart');
+            .getByText('Cart');
+
         this.subtotalSection = this.cartContainer
-                                    .getByText('SUBTOTAL').locator('..');
+            .getByText('SUBTOTAL').locator('..');
     }
 
     // ==========================
@@ -49,47 +53,57 @@ export class CartPage {
     // ==========================
 
     /**
-     * Validate cart is visible
-     * Ensures cart UI is opened after adding product
+     * Validates that the cart sidebar is visible on screen
+     * Ensures cart has been successfully opened after user action
      */
     async verifyCartVisible(): Promise<void> {
         await expect(this.cartTitle).toBeVisible();
     }
 
     /**
-     * Validate specific product is present in cart
-     * @param productName - exact product name
+     * Validates that a specific product exists inside the cart
+     * Uses exact text matching for strict verification
+     * @param productName - Exact product name expected in cart
      */
     async verifyProductInCart(productName: string): Promise<void> {
 
-        // No explicit wait → expect() handles auto-waiting
-        const product = this.cartContainer.getByText(productName, { exact: true }).first();
+        // Locate product within cart container with strict match
+        const product = this.cartContainer
+            .getByText(productName, { exact: true })
+            .first();
 
+        // Assert product visibility in cart UI
         await expect(product).toBeVisible();
     }
 
     /**
-     * Validate subtotal value
-     * @param expectedAmount - e.g. "134.90"
+     * Validates subtotal amount displayed in cart
+     * Handles formatting inconsistencies using flexible regex matching
+     * @param expectedAmount - Expected subtotal value (e.g. "134.90")
      */
     async verifySubtotal(expectedAmount: string): Promise<void> {
 
-        const normalizedAmount = expectedAmount.replace('$','').trim();
-        // Flexible regex to handle UI spacing inconsistencies
-        const subtotalValue = this.subtotalSection.getByText(new RegExp(`\\$\\s*${normalizedAmount}`));
+        // Normalize input by removing currency symbols and trimming spaces
+        const normalizedAmount = expectedAmount.replace('$', '').trim();
 
+        // Build regex to match subtotal value with optional spacing variations
+        const subtotalValue = this.subtotalSection
+            .getByText(new RegExp(`\\$\\s*${normalizedAmount}`));
+
+        // Assert subtotal visibility
         await expect(subtotalValue).toBeVisible();
     }
 
     /**
-     * Get subtotal text (preferred for assertion in test layer)
+     * Retrieves subtotal text from cart UI
+     * Useful for assertions at test layer when value comparison is needed
      */
     async getSubtotalText(): Promise<string> {
         return await this.cartContainer.locator('p').last().innerText();
     }
 
     /**
-     * Close cart sidebar
+     * Closes the cart sidebar/modal
      */
     async closeCart(): Promise<void> {
         await this.closeButton.click();

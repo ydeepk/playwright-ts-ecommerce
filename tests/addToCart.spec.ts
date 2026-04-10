@@ -1,4 +1,4 @@
-// Import Playwright test runner utilities
+ // Import Playwright test runner utilities
 // 'test' defines test blocks, 'expect' is used for assertions
 import { test, expect } from '@playwright/test';
 
@@ -8,30 +8,31 @@ import { test, expect } from '@playwright/test';
 // ==========================
 test('add to cart functionality', async ({ page }) => {
 
-    // Navigate to the ecommerce application
+    // Navigate to the ecommerce application under test
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
 
     // Select product size 'S'
-    // Using text-based locator here, but note: this is not very stable if multiple 'S' elements exist
-    // In real projects, prefer scoped locator within a product card or use test-id
+    // NOTE: This locator is text-based and may not be stable if multiple elements contain 'S'
+    // Prefer scoped locators within product card or data-testid in production frameworks
     await page.getByText('S').first().click();
     
-    // Click on "Add to cart" button
-    // Again using first() assumes the first product is selected → risky if UI order changes
+    // Click "Add to cart" button for the selected product
+    // Using first() assumes default product selection order which may change in UI updates
     await page.getByText('Add to cart').first().click();
 
-    // Identify cart sidebar container
-    // Strategy: find a container that uniquely contains the 'Checkout' button
-    // This scopes all further validations within the correct UI section
+    // Locate cart sidebar container
+    // Strategy: identify parent container that uniquely contains the Checkout button
+    // This ensures all cart validations are scoped correctly
     const sidebar = page.locator('div').filter({
         has: page.getByRole('button', { name: 'Checkout' })
     });
 
-    // Validate that Cart title is visible → confirms cart UI is opened/updated
+    // Validate that Cart title is visible
+    // Confirms that cart UI has been successfully opened/updated
     await expect(sidebar.locator('span').getByText('Cart')).toBeVisible();
     
-    // Validate that cart total is NOT $0.00
-    // This is a business validation ensuring item was added successfully
-    // Using negative assertion here instead of exact value keeps test flexible
+    // Validate that cart total is not $0.00
+    // Business validation: ensures at least one item has been added to cart
+    // Using negative assertion keeps test flexible across pricing changes
     await expect(sidebar.getByText('$ 0.00')).not.toBeVisible();
 });

@@ -1,4 +1,4 @@
-// Import Playwright test runner utilities
+ // Import Playwright test runner utilities
 // 'test' is used to define test cases
 // 'expect' is used for assertions
 import { test, expect } from "@playwright/test";
@@ -11,56 +11,62 @@ test('find specific product', async ({ page }) => {
 
     console.log('Test 1');
 
-    // Navigate to the ecommerce demo site
+    // Navigate to the ecommerce demo application
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
 
-    // Identify the product card containing specific product text
-    // Using 'filter + has' ensures we scope to the correct container instead of relying on fragile selectors
+    // Locate product card containing specific product text
+    // Strategy: filter parent container using child text to ensure correct scoping
     const productCard = page.locator('div').filter({
         has: page.getByText('Black Batman T-shirt')
-    }).last(); // 'last()' used to avoid matching multiple similar elements
+    }).last(); // 'last()' avoids duplicate matches in repeated UI elements
 
-    // Within the scoped product card, click the "Add to cart" button
-    // Using role-based selector improves stability and readability
+    // Click "Add to cart" button within the scoped product card
+    // Role-based selector improves accessibility alignment and stability
     await productCard.getByRole('button', { name: 'Add to cart' }).click();
 
 
-    // Locate the sidebar/cart container by identifying a unique element (Checkout button)
-    // This ensures we are validating inside the correct section of the UI
+    // Locate cart/sidebar container using a unique anchor element (Checkout button)
+    // This ensures assertions are scoped to the correct UI section
     const sidebar = page.locator('div').filter({
         has: page.getByRole('button', { name: 'Checkout' })
     });
 
-    // Validate that Cart title is visible inside sidebar
-    // Ensures UI updated correctly after adding product
+    // Validate cart title visibility
     await expect(sidebar.locator('span').getByText('Cart')).toBeVisible();
 
-    // Validate product name appears in cart (nth used due to duplicate occurrences)
-    await expect(sidebar.locator('p').getByText('Black Batman T-shirt').nth(1)).toBeVisible();
+    // Validate product name appears in cart
+    // nth(1) is used due to duplicate occurrences in DOM structure
+    await expect(
+        sidebar.locator('p').getByText('Black Batman T-shirt').nth(1)
+    ).toBeVisible();
 
-    // Validate product description (size and type)
-    await expect(sidebar.getByText('S | Really Cool T-shirt')).toBeVisible();
+    // Validate product description (size and category/type)
+    await expect(
+        sidebar.getByText('S | Really Cool T-shirt')
+    ).toBeVisible();
 
-    // Validate product price
-    await expect(sidebar.getByText('$ 10.90').first()).toBeVisible();
+    // Validate product price visibility
+    await expect(
+        sidebar.getByText('$ 10.90').first()
+    ).toBeVisible();
 });
 
 
 // ==========================
-// Test 2: Using text-based filtering (alternative approach)
+// Test 2: Using text-based filtering (alternative locator strategy)
 // ==========================
 test('find specific product another way', async ({ page }) => {
 
     console.log('Test 2');
 
-    // Navigate to the ecommerce demo site
+    // Navigate to ecommerce demo application
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
 
-    // Directly locate product using text filter and chain button locator
-    // Faster to write but less controlled compared to scoped locator approach
+    // Alternative locator strategy using text-based filtering
+    // Simpler approach but less precise compared to scoped locators
     await page.locator('div')
-        .filter({ hasText: 'Black Batman T-shirt' }) // Matches any div containing the text
-        .locator('button:has-text("Add to cart")')   // Finds button inside that div
-        .first() // Ensures single element interaction
+        .filter({ hasText: 'Black Batman T-shirt' }) // Matches any div containing product text
+        .locator('button:has-text("Add to cart")')   // Finds nested button inside matched container
+        .first() // Ensures a single element is targeted for interaction
         .click();
 });
