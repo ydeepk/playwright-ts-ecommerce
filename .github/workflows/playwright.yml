@@ -166,7 +166,7 @@ jobs:
       # Includes edge cases, negative scenarios, and lower-priority flows
       # Accepts longer runtime and higher flakiness risk
       - name: Run Full Test Suite
-        run: npx playwright test --shard=${{ matrix.shard }} --retries=2
+        run: npx playwright test --shard=${{ matrix.shard }}
 
       # Artifacts are critical here → failures often need deep debugging (trace/video)
       - name: Upload Report

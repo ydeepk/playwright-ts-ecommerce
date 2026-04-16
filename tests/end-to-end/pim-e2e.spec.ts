@@ -10,7 +10,7 @@ test.describe('PIM Employee Lifecycle', () => {
      * Add → Delete → Verify deletion
      * Ensures core PIM functionality works as expected
      */
-    test('should complete add → search → delete employee flow', async ({ page }) => {
+    test('@regression should complete add → search → delete employee flow', async ({ page }) => {
 
         // Initialize page object models for test interaction abstraction
         const loginPage = new LoginPage(page);

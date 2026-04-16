@@ -5,7 +5,7 @@ import { LoginPage } from '../../pages/LoginPage';
 // ==========================
 // Test Suite: Login (Smoke)
 // ==========================
-test.describe('Login Smoke Suite', () => {
+test.describe('@smoke Login Smoke Suite', () => {
 
     /**
      * Smoke test to verify successful login functionality
