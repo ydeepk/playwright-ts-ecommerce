@@ -1,5 +1,4 @@
 import { test } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
 import { Navigation } from '../../pages/components/Navigation';
 import { PIMPage } from '../../pages/PIMPage';
 
@@ -10,16 +9,11 @@ test.describe('PIM Employee Lifecycle', () => {
      * Add → Delete → Verify deletion
      * Ensures core PIM functionality works as expected
      */
-    test('@regression should complete add → search → delete employee flow', async ({ page }) => {
+    test('@Regression should complete add → search → delete employee flow', async ({ page }) => {
 
         // Initialize page object models for test interaction abstraction
-        const loginPage = new LoginPage(page);
         const navigation = new Navigation(page);
         const pimPage = new PIMPage(page);
-
-        // Navigate to application and perform login
-        await loginPage.navigate();
-        await loginPage.login('Admin', 'admin123');
 
         // Navigate to PIM module after successful login
         await navigation.goToPIM();

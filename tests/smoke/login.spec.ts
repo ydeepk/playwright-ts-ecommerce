@@ -2,10 +2,12 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
 
+test.use({ storageState: { cookies: [], origins: [] } }); // Tells this file: "Start fresh/Logged out"
+
 // ==========================
 // Test Suite: Login (Smoke)
 // ==========================
-test.describe('@smoke Login Smoke Suite', () => {
+test.describe('@Smoke Login Smoke Suite', () => {
 
     /**
      * Smoke test to verify successful login functionality
