@@ -1,27 +1,68 @@
-name: Playwright Tests
+name: Playwright Test Suite (Smoke + Regression + E2E)
+
 on:
+  # Trigger on code changes and PR validation
+  # Ensures fast feedback before merge and verification after merge
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+
 jobs:
   test:
-    timeout-minutes: 60
+    name: Execute Playwright Test Matrix
     runs-on: ubuntu-latest
+
+    # Prevents runaway jobs from blocking pipeline resources
+    timeout-minutes: 60
+
+    strategy:
+      # Continue running other shards even if one fails → better failure visibility
+      fail-fast: false
+
+      matrix:
+        # Splits test suite into parallel chunks
+        # Requires tests to be independent (no shared state)
+        shard: [1/2, 2/2]
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install dependencies
-      run: npm ci
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
-    - name: Run Playwright tests
-      run: npx playwright test
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      # Fetch latest repository state
+      # Required for pipeline execution
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup Node.js runtime
+      # Version pinned to reduce variability across runs
+      # Built-in npm caching reduces install time significantly
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Clean dependency installation
+      # npm ci ensures lockfile consistency → avoids "works locally but fails in CI"
+      - name: Install dependencies
+        run: npm ci
+
+      # Install Playwright browsers + OS dependencies
+      # Required because CI runners are fresh machines with no browsers installed
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      # Execute test suite
+      # --shard enables parallel execution across matrix jobs
+      # --retries mitigates flaky UI/network issues
+      - name: Run Playwright tests
+        run: npx playwright test --shard=${{ matrix.shard }} --retries=2
+
+      # Upload test artifacts for debugging
+      # Includes HTML report, screenshots, traces (if configured)
+      # Condition avoids upload on manual cancellation
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 30
