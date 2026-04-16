@@ -1,103 +1,72 @@
 name: Playwright Test Pipeline (PR + Regression + Nightly)
 
 on:
-  # PR trigger → fast validation before merge
-  # Goal: fail quickly, protect main branch
+  # PR → fast feedback before merge
   pull_request:
     branches: [ main, master ]
 
-  # Push trigger → post-merge validation
-  # Goal: catch integration issues missed in PR (broader scope)
+  # Push → validate integration after merge
   push:
     branches: [ main, master ]
 
-  # Scheduled execution → deep validation outside developer workflow
-  # Runs heavy/slow suites (edge, negative, flaky-prone scenarios)
+  # Nightly → deep validation outside dev workflow
   schedule:
-    - cron: '0 2 * * *'   # Daily at 2 AM UTC (off-peak to reduce contention)
+    - cron: '0 2 * * *'
 
 jobs:
 
   # ==========================
-  # PR JOB → FAST FEEDBACK
+  # PR JOB → SMOKE (FAST)
   # ==========================
   smoke-tests:
     name: Smoke Tests (PR Gate)
-
-    # Ensures this job only runs for PR events
-    # Prevents unnecessary execution on push/schedule
     if: github.event_name == 'pull_request'
-
     runs-on: ubuntu-latest
-
-    # Keep PR feedback fast → hard cap execution time
     timeout-minutes: 30
 
-    steps:
-      # Pulls repository code into runner
-      # Without this, pipeline has no access to test files
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/2, 2/2]   # Faster PR feedback
 
-      # Sets up Node runtime
-      # Version pinned → avoids unexpected failures due to Node upgrades
-      # npm cache → reduces install time significantly (~30-50%)
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # Clean install using lockfile
-      # Guarantees deterministic builds → avoids "works locally, fails in CI"
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      # Installs browsers + OS dependencies
-      # Required because CI runners are ephemeral (no pre-installed browsers)
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+      - run: npx playwright install --with-deps
 
-      # Execute only critical path tests
-      # --grep @smoke → ensures minimal suite for fast feedback
-      # --retries=1 → handles transient UI/network flakiness without hiding real issues
+      # Runs ONLY smoke project (defined in config)
+      # No grep → config controls test selection
       - name: Run Smoke Tests
-        run: npx playwright test --grep @smoke --retries=1
+        run: npx playwright test --project=smoke-chromium --shard=${{ matrix.shard }}
 
-      # Upload report for debugging failures
-      # Condition avoids unnecessary upload if job is manually cancelled
       - name: Upload Report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-report
+          name: smoke-report-${{ matrix.shard }}
           path: playwright-report/
-          retention-days: 15   # Short retention → PR artifacts lose value quickly
+          retention-days: 15
 
 
   # ==========================
-  # MAIN JOB → FULL REGRESSION
+  # MAIN JOB → REGRESSION
   # ==========================
   regression-tests:
     name: Regression Suite (Post-Merge)
-
-    # Runs only after code is merged
-    # Purpose: validate broader system impact
     if: github.event_name == 'push'
-
     runs-on: ubuntu-latest
-
-    # Allows longer execution (larger suite)
     timeout-minutes: 60
 
     strategy:
-      # Continue running all shards even if one fails
-      # Gives complete failure picture instead of stopping early
       fail-fast: false
-
       matrix:
-        # Parallel test distribution
-        # Reduces execution time but requires test independence
         shard: [1/3, 2/3, 3/3]
 
     steps:
@@ -112,42 +81,37 @@ jobs:
 
       - run: npx playwright install --with-deps
 
-      # Runs regression + core business flows
-      # --shard → splits workload across parallel jobs
-      # --retries=2 → balances flakiness vs masking real defects
+      # Runs regression projects across browsers
+      # Config handles tagging via grep
       - name: Run Regression Tests
-        run: npx playwright test --grep @regression --shard=${{ matrix.shard }} --retries=2
+        run: |
+          npx playwright test \
+            --project=regression-chromium \
+            --project=regression-firefox \
+            --project=regression-webkit \
+            --shard=${{ matrix.shard }}
 
-      # Each shard uploads its own report → easier debugging of parallel failures
       - name: Upload Report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: regression-report-${{ matrix.shard }}
           path: playwright-report/
-          retention-days: 30   # Longer retention for debugging post-merge issues
+          retention-days: 30
 
 
   # ==========================
-  # NIGHTLY JOB → FULL COVERAGE
+  # NIGHTLY JOB → FULL SUITE
   # ==========================
   nightly-tests:
     name: Full Suite (Nightly - Edge + Negative)
-
-    # Runs only on scheduled trigger
-    # Keeps heavy tests out of developer feedback loop
     if: github.event_name == 'schedule'
-
     runs-on: ubuntu-latest
-
-    # Longest timeout → includes slow, complex, and flaky scenarios
     timeout-minutes: 90
 
     strategy:
       fail-fast: false
-
       matrix:
-        # Higher parallelism → required due to large test volume
         shard: [1/4, 2/4, 3/4, 4/4]
 
     steps:
@@ -162,13 +126,11 @@ jobs:
 
       - run: npx playwright install --with-deps
 
-      # Runs complete test suite (no filtering)
-      # Includes edge cases, negative scenarios, and lower-priority flows
-      # Accepts longer runtime and higher flakiness risk
+      # Runs ALL projects (smoke + regression + future edge/negative)
+      # No filtering → full coverage
       - name: Run Full Test Suite
         run: npx playwright test --shard=${{ matrix.shard }}
 
-      # Artifacts are critical here → failures often need deep debugging (trace/video)
       - name: Upload Report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
