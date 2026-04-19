@@ -4,39 +4,42 @@ import { PIMPage } from '../../pages/PIMPage';
 
 test.describe('@regression PIM Employee Lifecycle', () => {
 
-
     test.beforeEach(async ({ page }) => {
-        // This 'wakes up' the browser and takes it to the site
-        // Because of Storage State, it will skip the login screen automatically
-        await page.goto('/'); 
+        // Navigate to application root
+        // Assumes authenticated session is already available via storageState
+        await page.goto('/');
     });
-    
+
     /**
-     * End-to-end test covering full employee lifecycle:
+     * End-to-end validation of employee lifecycle:
      * Add → Delete → Verify deletion
-     * Ensures core PIM functionality works as expected
+     *
+     * Covers:
+     * - Employee creation
+     * - Data persistence
+     * - Deletion workflow
      */
     test('should complete add → search → delete employee flow', async ({ page }) => {
 
-        // Initialize page object models for test interaction abstraction
+        // Initialize reusable components and page objects
         const navigation = new Navigation(page);
         const pimPage = new PIMPage(page);
 
-        // Navigate to PIM module after successful login
+        // Navigate to PIM module (post-login state assumed)
         await navigation.goToPIM();
 
-        // Step 1: Add a new employee and capture generated employee ID
-        const employeeId = await test.step('Add new employee', async () => {
+        // Create employee and capture generated ID (critical for downstream steps)
+        const employeeId = await test.step('Create new employee', async () => {
             return await pimPage.addNewEmployee('Ayush', 'Yadav');
         });
 
-        // Step 2: Delete the newly created employee using captured ID
-        await test.step('Delete employee', async () => {
+        await test.step('Delete employee by ID', async () => {
+            // Uses captured ID to ensure correct record is targeted
             await pimPage.deleteEmployeeById(employeeId);
         });
 
-        // Step 3: Verify that the employee no longer exists in the system
-        await test.step('Verify deletion', async () => {
+        await test.step('Verify employee is no longer present', async () => {
+            // Confirms deletion at UI/search level (not just action success)
             await pimPage.verifyEmployeeNotFoundById(employeeId);
         });
     });
