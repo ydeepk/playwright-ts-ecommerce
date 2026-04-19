@@ -2,14 +2,21 @@ import { test } from '@playwright/test';
 import { Navigation } from '../../pages/components/Navigation';
 import { PIMPage } from '../../pages/PIMPage';
 
-test.describe('PIM Employee Lifecycle', () => {
+test.describe('@regression PIM Employee Lifecycle', () => {
 
+
+    test.beforeEach(async ({ page }) => {
+        // This 'wakes up' the browser and takes it to the site
+        // Because of Storage State, it will skip the login screen automatically
+        await page.goto('/'); 
+    });
+    
     /**
      * End-to-end test covering full employee lifecycle:
      * Add → Delete → Verify deletion
      * Ensures core PIM functionality works as expected
      */
-    test('@Regression should complete add → search → delete employee flow', async ({ page }) => {
+    test('should complete add → search → delete employee flow', async ({ page }) => {
 
         // Initialize page object models for test interaction abstraction
         const navigation = new Navigation(page);

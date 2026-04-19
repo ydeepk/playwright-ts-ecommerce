@@ -46,7 +46,7 @@ export default defineConfig({
   use: {
 
     // Base URL (should ideally come from env variables for multi-env support)
-    baseURL: process.env.BASE_URL || 'https://react-shopping-cart-67954.firebaseapp.com/',
+    baseURL: process.env.BASE_URL || 'https://opensource-demo.orangehrmlive.com/',
 
     // Collect trace only when retry happens
     trace: 'on-first-retry',
