@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
-import { NavigationComponent } from '../../pages/NavigationComponent';
-import { PIMPage } from '../../pages/PIMPage';
+import { NavigationComponent } from '../../pages/components/Navigation';
+import { PIMPage } from '../../pages/PIM.page';
 
 test.describe('@regression PIM Employee Lifecycle', () => {
 
