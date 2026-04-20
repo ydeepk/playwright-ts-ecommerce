@@ -1,6 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 
-export class LoginPage {
+export class Login {
 
     // Playwright page instance (entry point for all browser interactions)
     private readonly page: Page;

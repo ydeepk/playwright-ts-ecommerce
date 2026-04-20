@@ -1,6 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 
-export class NavigationComponent {
+export class Navigation {
 
     // ==========================
     // Properties

@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
-import { NavigationComponent, } from '../../pages/NavigationComponent';
-import { PIMPage } from '../../pages/PIMPage';
+import { Navigation } from '../../pages/components/Navigation';
+import { PIM } from '../../pages/PIM.page';
 
 test.describe('@smoke Navigation to PIM', () => {
 
@@ -12,8 +12,8 @@ test.describe('@smoke Navigation to PIM', () => {
 
     test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ page }) => {
 
-        const navigation = new NavigationComponent(page);
-        const pimPage = new PIMPage(page);
+        const navigation = new Navigation(page);
+        const pimPage = new PIM(page);
 
         // Step 1: Navigate to PIM module
         await test.step('Navigate to PIM module', async () => {

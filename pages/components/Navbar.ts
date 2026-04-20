@@ -1,6 +1,6 @@
 import { Page, expect, Locator } from '@playwright/test';
 
-export class NavbarComponent {
+export class Navbar {
 
     private readonly page: Page;
 
