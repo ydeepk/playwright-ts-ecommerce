@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Path to persist authenticated session state
 // Used to bypass login across tests → improves execution speed significantly
 // Must be generated via auth.setup.ts before dependent tests run
-export const STORAGE_STATE = 'playwright/.auth/user.json';
+export const STORAGE_STATE = 'playwright-utils/.auth/user.json';
 
 /**
  * Playwright Test Configuration

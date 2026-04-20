@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 // ==========================
 // Test: Verify Page Title
 // ==========================
-test('Verify page title', async ({ page }) => {
+test('@smoke Verify page title', async ({ page }) => {
 
     // Navigate to the application under test
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');
