@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
 import { DashboardPage } from '../../pages/DashboardPage';
-import { NavbarComponent } from '../../pages/components/NavbarComponent';
+import { NavbarComponent } from '../../pages/NavbarComponent';
 
 // Forces test to start without any persisted authentication
 // Useful when other suites rely on stored sessions (auth fixtures, storageState files)
