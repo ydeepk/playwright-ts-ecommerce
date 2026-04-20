@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { Navigation } from '../../pages/components/Navigation';
+import { NavigationComponent } from '../../pages/NavigationComponent';
 import { PIMPage } from '../../pages/PIMPage';
 
 test.describe('@regression PIM Employee Lifecycle', () => {
@@ -22,7 +22,7 @@ test.describe('@regression PIM Employee Lifecycle', () => {
     test('should complete add → search → delete employee flow', async ({ page }) => {
 
         // Initialize reusable components and page objects
-        const navigation = new Navigation(page);
+        const navigation = new NavigationComponent(page);
         const pimPage = new PIMPage(page);
 
         // Navigate to PIM module (post-login state assumed)
