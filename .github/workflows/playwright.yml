@@ -2,108 +2,110 @@ name: Playwright Test Pipeline (PR + Regression + Nightly)
 
 on:
   workflow_dispatch:
-  # PR trigger → fast feedback before merge
-  # Goal: catch critical failures early and block bad code
+
   pull_request:
     branches: [ main, master ]
 
-  # Push trigger → post-merge validation
-  # Goal: validate broader system after integration
   push:
     branches: [ main, master ]
 
-  # Scheduled execution → deep validation outside developer workflow
-  # Includes slow, edge, and negative scenarios
   schedule:
-    - cron: '0 2 * * *'   # Runs daily at 2 AM UTC (low traffic window)
+    - cron: '0 2 * * *'
+
 
 jobs:
 
-  # ==========================
-  # PR JOB → SMOKE TESTS
-  # ==========================
+  # ==========================================
+  # SMOKE TESTS (FAST FEEDBACK FOR PR)
+  # ==========================================
   smoke-tests:
     name: Smoke Tests (PR Gate)
-
-    # Ensures this job runs ONLY for PR events
-    # Prevents unnecessary execution during push/schedule
     if: github.event_name == 'pull_request'
-
     runs-on: ubuntu-latest
-
-    # Keep PR feedback fast → strict timeout
     timeout-minutes: 30
 
     strategy:
-      # Continue other shards even if one fails
-      # Provides complete failure visibility
-      fail-fast: false
-
+      fail-fast: false   # PRO: ensures all shards run → better failure visibility
       matrix:
-        # Split smoke tests into parallel chunks
-        # Faster execution but requires test independence
         shardIndex: [1, 2]
         shardTotal: [2]
 
     steps:
-      # Fetch repository code
       - uses: actions/checkout@v4
 
-      # Setup Node environment
-      # Uses caching to speed up dependency installation
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'npm'   # PRO: speeds up CI by caching dependencies
 
-      # Clean install (lockfile-based)
-      # Ensures deterministic builds
-      - run: npm ci
+      - run: npm ci   # PRO: deterministic install (never use npm install in CI)
 
-      # Install Playwright browsers + OS dependencies
-      # Required for fresh CI runners
       - run: npx playwright install --with-deps
 
-      # Run ONLY smoke project (defined in config)
-      # No grep → config controls test selection
-      # Sharding improves execution speed
       - name: Run Smoke Tests
-        run: npx playwright test --project=smoke-chromium --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: |
+          npx playwright test \
+          --project=smoke-chromium \
+          --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      # Upload report for debugging failures
-      # Includes HTML report, screenshots, traces
-      - name: Upload Report
+      - name: Upload Blob Report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
+          # PRO: safe naming (no /), avoids artifact conflicts
+          name: blob-smoke-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
           path: blob-report/
-name: blob-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
-          retention-days: 15   # Short retention (PR artifacts lose value quickly)
+          retention-days: 7   # PRO: short retention → saves storage cost
 
 
-  # ==========================
-  # MAIN JOB → REGRESSION
-  # ==========================
-  regression-tests:
-    name: Regression Suite (Post-Merge)
-
-    # Runs ONLY on push (after merge)
-    # Ensures full system validation without slowing PRs
-    if: github.event_name == 'push'
-
+  # ==========================================
+  # MERGE SMOKE REPORTS (CRITICAL FOR DEBUGGING)
+  # ==========================================
+  merge-smoke:
+    name: Merge Smoke Reports
+    needs: smoke-tests
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
-    # Larger suite → more time required
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - name: Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+
+      - name: Merge Playwright Reports
+        run: |
+          npx playwright merge-reports \
+          --reporter html \
+          ./all-blob-reports
+
+      - name: Upload Final Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-smoke-report
+          path: playwright-report/
+
+
+  # ==========================================
+  # REGRESSION TESTS (POST-MERGE VALIDATION)
+  # ==========================================
+  regression-tests:
+    name: Regression Suite
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     strategy:
-      # Do not stop early → collect all failures
       fail-fast: false
-
       matrix:
-        # Parallel execution across shards
-        # Requires test independence and no shared data
         shardIndex: [1, 2, 3]
         shardTotal: [3]
 
@@ -119,49 +121,67 @@ name: blob-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
 
       - run: npx playwright install --with-deps
 
-      # Run regression tests across multiple browsers
-      # Config handles test selection via grep
-      # Cross-browser coverage ensures real-world reliability
       - name: Run Regression Tests
         run: |
           npx playwright test \
-            --project=regression-chromium \
-            --project=regression-firefox \
-            --project=regression-webkit \
-            --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          --project=regression-chromium \
+          --project=regression-firefox \
+          --project=regression-webkit \
+          --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      # Each shard uploads separate report → easier debugging
-      - name: Upload Report
-        if: ${{ !cancelled() }}
+      - name: Upload Blob Report
         uses: actions/upload-artifact@v4
         with:
-          name: regression-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
+          name: blob-regression-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
           path: blob-report/
-name: blob-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
-          retention-days: 30   # Longer retention for post-merge debugging
+          retention-days: 15
 
 
-  # ==========================
-  # NIGHTLY JOB → FULL SUITE
-  # ==========================
-  nightly-tests:
-    name: Full Suite (Nightly - Edge + Negative)
-
-    # Runs only on scheduled trigger
-    # Keeps heavy tests out of developer workflow
-    if: github.event_name == 'schedule'
-
+  # ==========================================
+  # MERGE REGRESSION REPORTS
+  # ==========================================
+  merge-regression:
+    name: Merge Regression Reports
+    needs: regression-tests   # PRO: correct dependency (you had this wrong)
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
-    # Longest timeout → includes slow and complex scenarios
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+
+      - run: |
+          npx playwright merge-reports \
+          --reporter html \
+          ./all-blob-reports
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merged-regression-report
+          path: playwright-report/
+
+
+  # ==========================================
+  # NIGHTLY FULL SUITE (EDGE + NEGATIVE)
+  # ==========================================
+  nightly-tests:
+    name: Full Suite (Nightly)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
       fail-fast: false
-
       matrix:
-        # Maximum parallelization for large test suite
-        # Helps keep nightly runtime reasonable
         shardIndex: [1, 2, 3, 4]
         shardTotal: [4]
 
@@ -177,19 +197,45 @@ name: blob-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
 
       - run: npx playwright install --with-deps
 
-      # Run ALL tests (no filtering)
-      # Includes smoke, regression, edge, negative
-      # Accepts longer runtime and higher flakiness risk
-      - name: Run Full Test Suite
+      - name: Run Full Suite
         run: npx playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      # Critical for debugging complex failures
-      # Nightly failures often require trace/video analysis
-      - name: Upload Report
-        if: ${{ !cancelled() }}
+      - name: Upload Blob Report
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-report-shard-${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          name: blob-nightly-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
           path: blob-report/
-name: blob-report-${{ matrix.shardIndex }}-of-${{ matrix.shardTotal }}
           retention-days: 30
+
+
+  # ==========================================
+  # MERGE NIGHTLY REPORTS
+  # ==========================================
+  merge-nightly:
+    name: Merge Nightly Reports
+    needs: nightly-tests
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+
+      - run: |
+          npx playwright merge-reports \
+          --reporter html \
+          ./all-blob-reports
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merged-nightly-report
+          path: playwright-report/

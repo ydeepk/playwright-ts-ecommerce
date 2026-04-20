@@ -40,7 +40,10 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
 
   // HTML report for debugging and trace visualization
-  reporter: 'html',
+  reporter: [
+    ['html'],
+    ['blob']
+  ],
 
   // Shared settings across all projects
   use: {
