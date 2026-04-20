@@ -1,6 +1,7 @@
 name: Playwright Test Pipeline (PR + Regression + Nightly)
 
 on:
+  workflow_dispatch:
   # PR trigger → fast feedback before merge
   # Goal: catch critical failures early and block bad code
   pull_request:
