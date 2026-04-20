@@ -157,7 +157,7 @@ jobs:
       matrix:
         # Maximum parallelization for large test suite
         # Helps keep nightly runtime reasonable
-        shard: [1/4, 2/4, 3/4, 4/4]
+        shard: [1-4, 2-4, 3-4, 4-4]
 
     steps:
       - uses: actions/checkout@v4
@@ -183,6 +183,6 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-report-${{ matrix.shard }}
+          name: nightly-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 30
