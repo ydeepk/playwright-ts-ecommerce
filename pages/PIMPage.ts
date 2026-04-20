@@ -157,4 +157,25 @@ export class PIMPage {
         // Log confirmation for debugging and traceability
         console.log(`Success: Employee ${employeeId} is officially gone from the system.`);
     }
+
+    async verifyPIMHeader(): Promise<void> {
+        await expect(this.page).toHaveURL(/.*pim\/viewEmployeeList/);
+        await expect(this.page.getByRole('heading', { name: 'Employee Information' })).toBeVisible();
+    }
+
+    async verifyDataTableVisibility(): Promise<void> {
+        const employeeTable = this.page.locator('.oxd-table');
+        await expect(employeeTable).toBeVisible();
+    }
+
+    async verifyRecordExistsInTable(): Promise<void> {
+        const recordCount = this.page.getByText(/\(\d+\)\s+Records\s+Found/i);
+        await expect(recordCount).toBeVisible();
+    }
+
+    async verifyIfEnabledButton(): Promise<void> {
+        await expect(this.addEmployeeButton).toBeEnabled();
+        await expect(this.searchButton).toBeEnabled();
+    }
+
 }

@@ -1,41 +1,33 @@
- // Import Playwright test utilities
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
+import { DashboardPage } from '../../pages/DashboardPage';
 
-// ==========================
-// Test Suite: Login (Smoke)
-// ==========================
-test.describe('Login Smoke Suite', () => {
+// Ensures test runs in a clean, logged-out state
+// Useful if other tests use stored authentication sessions
+test.use({ storageState: undefined });
 
-    /**
-     * Smoke test to verify successful login functionality
-     * Ensures user can authenticate and land on dashboard
-     */
+test.describe('@smoke Login Smoke Suite', () => {
+
     test('should login successfully with valid credentials', async ({ page }) => {
 
-        // Initialize Login Page Object Model
+        // Initialize Page Objects to encapsulate UI interactions
         const loginPage = new LoginPage(page);
+        const dashboardPage = new DashboardPage(page);
 
-        // Step 1: Navigate to application login page
         await test.step('Navigate to login page', async () => {
+            // Start from a known entry point
             await loginPage.navigate();
         });
 
-        // Step 2: Perform login with valid credentials
-        await test.step('Login with valid admin credentials', async () => {
+        await test.step('Authenticate with valid credentials', async () => {
+            // Hardcoded credentials (acceptable for learning/demo)
+            // WARNING: Replace with env/config before using in real projects
             await loginPage.login('Admin', 'admin123');
         });
 
-        // Step 3: Validate successful navigation to dashboard
-        await test.step('Verify user is redirected to dashboard', async () => {
-
-            // Ensure URL contains dashboard path
-            await expect(page).toHaveURL(/.*dashboard/);
-
-            // Ensure dashboard heading is visible (post-login confirmation)
-            await expect(
-                page.getByRole('heading', { name: 'Dashboard' })
-            ).toBeVisible();
+        await test.step('Verify user is redirected to Dashboard', async () => {
+            // Reuse POM-level validation to avoid duplicating assertions
+            await dashboardPage.isLoaded();
         });
     });
 

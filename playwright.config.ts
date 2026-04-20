@@ -1,82 +1,151 @@
+// Import Playwright configuration helpers and device presets
 import { defineConfig, devices } from '@playwright/test';
+
+// Path to persist authenticated session state
+// Used to bypass login across tests → improves execution speed significantly
+// Must be generated via auth.setup.ts before dependent tests run
+export const STORAGE_STATE = 'playwright/.auth/user.json';
 
 /**
  * Playwright Test Configuration
- * Docs: https://playwright.dev/docs/test-configuration
+ *
+ * Designed for:
+ * - CI/CD execution (PR + Regression + Nightly)
+ * - Controlled parallelism (sharding + workers)
+ * - Project-based test segmentation (smoke vs regression)
+ * - Debug-friendly artifact collection
  */
 export default defineConfig({
+
+  // Root directory for test files
   testDir: './tests',
 
-  // Run tests in parallel
-  fullyParallel: true,
+  // Disable full parallel inside files
+  // Parallelism is handled via:
+  // - CI sharding
+  // - worker threads
+  // Prevents over-parallelization issues
+  fullyParallel: false,
 
-  // Prevent accidental test.only in CI
+  // Prevent accidental commits with test.only in CI
   forbidOnly: !!process.env.CI,
 
   // Retry failed tests only in CI
+  // Helps handle transient failures without affecting local debugging
   retries: process.env.CI ? 2 : 0,
 
-  // Limit workers in CI for stability
-  workers: process.env.CI ? 1 : undefined,
+  // Worker configuration:
+  // - CI: limited workers → stable execution
+  // - Local: max workers → faster runs
+  workers: process.env.CI ? 2 : undefined,
 
-  // Test reporter
-  reporter: 'html',
+  // HTML report for debugging and trace visualization
+  reporter: [
+    ['html'],
+    ['blob']
+  ],
 
-  // Shared settings for all projects
+  // Shared settings across all projects
   use: {
-    // Base URL for navigation
-    baseURL: 'https://react-shopping-cart-67954.firebaseapp.com/',
 
-    // Capture trace on retry
+    // Base URL (should ideally come from env variables for multi-env support)
+    baseURL: process.env.BASE_URL || 'https://opensource-demo.orangehrmlive.com/',
+
+    // Collect trace only when retry happens
     trace: 'on-first-retry',
 
-    // Capture screenshot only on failure
+    // Capture screenshots only on failure
     screenshot: 'only-on-failure',
 
-    // Record video only on failure
+    // Record video only for failed tests
     video: 'retain-on-failure',
   },
 
-  // Browser configurations
+  // ==========================
+  // Project Configuration
+  // ==========================
+  // Controls WHAT tests run and WHERE (browser + tagging)
   projects: [
+
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      // Setup project (runs first)
+      // Responsible for generating authentication state
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
     },
 
-    // Mobile testing (optional)
+    // ==========================
+    // SMOKE PROJECT (PR)
+    // ==========================
+    {
+      name: 'smoke-chromium',
+
+      // Runs only smoke-tagged tests
+      // Used in PR pipeline for fast feedback
+      grep: /@smoke/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+
+        // Reuse login session
+        storageState: STORAGE_STATE,
+      },
+    },
+
+    // ==========================
+    // REGRESSION PROJECTS (MAIN)
+    // ==========================
+
+    {
+      name: 'regression-chromium',
+
+      // Core regression tests
+      grep: /@regression/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: STORAGE_STATE,
+      },
+    },
+
+    {
+      name: 'regression-firefox',
+
+      // Cross-browser validation (Firefox)
+      grep: /@regression/,
+
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: STORAGE_STATE,
+      },
+    },
+
+    {
+      name: 'regression-webkit',
+
+      // Cross-browser validation (Safari/WebKit)
+      grep: /@regression/,
+
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: STORAGE_STATE,
+      },
+    },
+
+    // ==========================
+    // FUTURE EXTENSIONS
+    // ==========================
+
+    // Add edge / negative projects if needed:
     // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
+    //   name: 'edge-tests',
+    //   grep: /@edge/,
     // },
 
-    // Branded browsers (optional)
     // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+    //   name: 'negative-tests',
+    //   grep: /@negative/,
     // },
   ],
 
-  // Optional: Run local dev server before tests
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });
