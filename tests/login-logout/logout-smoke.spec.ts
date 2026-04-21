@@ -3,11 +3,14 @@ import { Login } from '../../pages/Login.page';
 import { Dashboard } from '../../pages/Dashboard.page';
 import { Navbar } from '../../pages/components/Navbar';
 
-// Forces test to start without any persisted authentication
-// Useful when other suites rely on stored sessions (auth fixtures, storageState files)
-test.use({ storageState: undefined });
 
-test.describe('@smoke Logout Flow', () => {
+test.describe('@smoke-auth Logout Flow', () => {
+
+    test.beforeEach(async ({ page }) => {
+        // Navigate to application root
+        // Assumes authenticated session is already available via storageState
+        await page.goto('/');
+    });
 
     test('should allow user to logout successfully', async ({ page }) => {
 
@@ -15,11 +18,6 @@ test.describe('@smoke Logout Flow', () => {
         const loginPage = new Login(page);
         const dashboardPage = new Dashboard(page);
         const navbarComponent = new Navbar(page);
-
-        await test.step('Authenticate user with valid credentials', async () => {
-            // Direct login action; assumes credentials are valid and stable
-            await loginPage.login('Admin', 'admin123');
-        });
 
         await test.step('Verify user lands on Dashboard after login', async () => {
             // Confirms successful authentication + page readiness

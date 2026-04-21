@@ -1,10 +1,5 @@
 // Import Playwright configuration helpers and device presets
-import { defineConfig, devices } from '@playwright/test';
-
-// Path to persist authenticated session state
-// Used to bypass login across tests → improves execution speed significantly
-// Must be generated via auth.setup.ts before dependent tests run
-export const STORAGE_STATE = 'playwright-utils/.auth/user.json';
+import { chromium, defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright Test Configuration
@@ -75,6 +70,25 @@ export default defineConfig({
     },
 
     // ==========================
+    // Unauthenticated SMOKE (Login/Logout) PROJECT (PR)
+    // ==========================
+    {
+      name: 'smoke-auth-chromium',
+
+      // Runs only smoke-tagged tests
+      // Used in PR pipeline for fast feedback
+      grep: /@smoke-auth/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+
+        // Reuse login session
+        storageState: {cookies: [], origins: []},
+      },
+    },
+
+
+        // ==========================
     // SMOKE PROJECT (PR)
     // ==========================
     {
@@ -88,9 +102,11 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
 
         // Reuse login session
-        storageState: STORAGE_STATE,
+        storageState: `.auth/chromium-storageState.json`,
       },
+      dependencies: ['setup'],
     },
+
 
     // ==========================
     // REGRESSION PROJECTS (MAIN)
@@ -104,8 +120,10 @@ export default defineConfig({
 
       use: {
         ...devices['Desktop Chrome'],
-        storageState: STORAGE_STATE,
+
+        storageState: '.auth/chromium-storageState.json',
       },
+      dependencies: ['setup'],
     },
 
     {
@@ -116,8 +134,10 @@ export default defineConfig({
 
       use: {
         ...devices['Desktop Firefox'],
-        storageState: STORAGE_STATE,
+
+        storageState: '.auth/firefox-storageState.json',
       },
+      dependencies: ['setup'],
     },
 
     {
@@ -128,8 +148,10 @@ export default defineConfig({
 
       use: {
         ...devices['Desktop Safari'],
-        storageState: STORAGE_STATE,
+        
+        storageState: '.auth/webkit-storageState.json',
       },
+      dependencies: ['setup'],
     },
 
     // ==========================

@@ -60,11 +60,15 @@ export class PIM {
         await this.lastNameInput.fill(lastName);
 
         // Locate Employee ID input dynamically based on label grouping
-        const idInput = this.page.locator('.oxd-input-group', { hasText: 'Employee Id' }).locator('input');
+        const idGroup = this.page.locator('.oxd-input-group', { hasText: 'Employee Id' });
+        const idInput = idGroup.locator('input');
 
         // Wait until system-generated ID is populated
         await expect(idInput).not.toHaveValue('', { timeout: 10000 });
 
+        const uniqueId = Date.now().toString().slice(-4); 
+        await idInput.fill(uniqueId);
+        
         // Capture generated employee ID for later validation
         const generatedId = await idInput.inputValue();
 

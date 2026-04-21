@@ -38,6 +38,14 @@ export class Login {
 
     async login(username: string, password: string): Promise<void> {
 
+        if(!this.page.url().includes('/auth/login')) {
+            await this.page.goto('web/index.php/auth/login');
+        }
+
+        await this.page.waitForLoadState('networkidle');
+
+        await this.usernameInput.waitFor({state: 'visible', timeout: 10000});
+
         // Fill credentials
         await this.usernameInput.fill(username);
         await this.passwordInput.fill(password);
