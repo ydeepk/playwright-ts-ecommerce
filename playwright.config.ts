@@ -65,19 +65,38 @@ export default defineConfig({
     {
       // Setup project (runs first)
       // Responsible for generating authentication state
-      name: 'setup',
+      name: 'setup-chromium',
       testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+
+    {
+      // Setup project (runs first)
+      // Responsible for generating authentication state
+      name: 'setup-firefox',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+
+
+    {
+      // Setup project (runs first)
+      // Responsible for generating authentication state
+      name: 'setup-webkit',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Safari'] },
     },
 
     // ==========================
     // Unauthenticated SMOKE (Login/Logout) PROJECT (PR)
     // ==========================
     {
-      name: 'smoke-auth-chromium',
+      name: 'auth-chromium',
 
       // Runs only smoke-tagged tests
       // Used in PR pipeline for fast feedback
-      grep: /@smoke-auth/,
+      grep: /@auth\b/,
 
       use: {
         ...devices['Desktop Chrome'],
@@ -96,15 +115,15 @@ export default defineConfig({
 
       // Runs only smoke-tagged tests
       // Used in PR pipeline for fast feedback
-      grep: /@smoke/,
+      grep: /@smoke\b/,
 
       use: {
         ...devices['Desktop Chrome'],
 
         // Reuse login session
-        storageState: `.auth/chromium-storageState.json`,
+        storageState: `playwright-utils/.auth/chromium-storageState.json`,
       },
-      dependencies: ['setup'],
+      dependencies: ['setup-chromium'],
     },
 
 
@@ -116,42 +135,42 @@ export default defineConfig({
       name: 'regression-chromium',
 
       // Core regression tests
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Chrome'],
 
-        storageState: '.auth/chromium-storageState.json',
+        storageState: 'playwright-utils/.auth/chromium-storageState.json',
       },
-      dependencies: ['setup'],
+      dependencies: ['setup-chromium'],
     },
 
     {
       name: 'regression-firefox',
 
       // Cross-browser validation (Firefox)
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Firefox'],
 
-        storageState: '.auth/firefox-storageState.json',
+        storageState: 'playwright-utils/.auth/firefox-storageState.json',
       },
-      dependencies: ['setup'],
+      dependencies: ['setup-firefox'],
     },
 
     {
       name: 'regression-webkit',
 
       // Cross-browser validation (Safari/WebKit)
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Safari'],
         
-        storageState: '.auth/webkit-storageState.json',
+        storageState: 'playwright-utils/.auth/webkit-storageState.json',
       },
-      dependencies: ['setup'],
+      dependencies: ['setup-webkit'],
     },
 
     // ==========================

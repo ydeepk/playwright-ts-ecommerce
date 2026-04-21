@@ -6,7 +6,7 @@ import { Dashboard } from '../../pages/Dashboard.page';
 // Useful if other tests use stored authentication sessions
 test.use({ storageState: undefined });
 
-test.describe('@smoke-auth Login Smoke Suite', () => {
+test.describe('@auth Login Smoke Suite', () => {
 
     test('should login successfully with valid credentials', async ({ page }) => {
 

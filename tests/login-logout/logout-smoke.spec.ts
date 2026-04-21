@@ -4,13 +4,7 @@ import { Dashboard } from '../../pages/Dashboard.page';
 import { Navbar } from '../../pages/components/Navbar';
 
 
-test.describe('@smoke-auth Logout Flow', () => {
-
-    test.beforeEach(async ({ page }) => {
-        // Navigate to application root
-        // Assumes authenticated session is already available via storageState
-        await page.goto('/');
-    });
+test.describe('@auth Logout Flow', () => {
 
     test('should allow user to logout successfully', async ({ page }) => {
 
@@ -18,6 +12,17 @@ test.describe('@smoke-auth Logout Flow', () => {
         const loginPage = new Login(page);
         const dashboardPage = new Dashboard(page);
         const navbarComponent = new Navbar(page);
+
+        await test.step('Navigate to login page', async () => {
+            // Start from a known entry point
+            await loginPage.navigate();
+        });
+
+        await test.step('Authenticate with valid credentials', async () => {
+            // Hardcoded credentials (acceptable for learning/demo)
+            // WARNING: Replace with env/config before using in real projects
+            await loginPage.login('Admin', 'admin123');
+        });
 
         await test.step('Verify user lands on Dashboard after login', async () => {
             // Confirms successful authentication + page readiness

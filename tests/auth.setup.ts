@@ -10,7 +10,7 @@ import { Login } from '../pages/Login.page';
 // This runs BEFORE other tests and generates reusable session state
 setup('Authenticate', async ({ page, browserName }) => {
 
-    const authFile = `.auth/${browserName}-storageState.json`;
+    const authFile = `playwright-utils/.auth/${browserName}-storageState.json`;
 
     // Initialize login page object
     const loginPage = new Login(page);
