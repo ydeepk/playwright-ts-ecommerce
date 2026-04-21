@@ -1,10 +1,5 @@
 // Import Playwright configuration helpers and device presets
-import { defineConfig, devices } from '@playwright/test';
-
-// Path to persist authenticated session state
-// Used to bypass login across tests → improves execution speed significantly
-// Must be generated via auth.setup.ts before dependent tests run
-export const STORAGE_STATE = 'playwright/.auth/user.json';
+import { chromium, defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright Test Configuration
@@ -70,11 +65,49 @@ export default defineConfig({
     {
       // Setup project (runs first)
       // Responsible for generating authentication state
-      name: 'setup',
+      name: 'setup-chromium',
       testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+
+    {
+      // Setup project (runs first)
+      // Responsible for generating authentication state
+      name: 'setup-firefox',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+
+
+    {
+      // Setup project (runs first)
+      // Responsible for generating authentication state
+      name: 'setup-webkit',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Safari'] },
     },
 
     // ==========================
+    // Unauthenticated SMOKE (Login/Logout) PROJECT (PR)
+    // ==========================
+    {
+      name: 'auth-chromium',
+
+      // Runs only smoke-tagged tests
+      // Used in PR pipeline for fast feedback
+      grep: /@auth\b/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+
+        // Reuse login session
+        storageState: {cookies: [], origins: []},
+      },
+    },
+
+
+        // ==========================
     // SMOKE PROJECT (PR)
     // ==========================
     {
@@ -82,15 +115,17 @@ export default defineConfig({
 
       // Runs only smoke-tagged tests
       // Used in PR pipeline for fast feedback
-      grep: /@smoke/,
+      grep: /@smoke\b/,
 
       use: {
         ...devices['Desktop Chrome'],
 
         // Reuse login session
-        storageState: STORAGE_STATE,
+        storageState: `playwright-utils/.auth/chromium-storageState.json`,
       },
+      dependencies: ['setup-chromium'],
     },
+
 
     // ==========================
     // REGRESSION PROJECTS (MAIN)
@@ -100,36 +135,42 @@ export default defineConfig({
       name: 'regression-chromium',
 
       // Core regression tests
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Chrome'],
-        storageState: STORAGE_STATE,
+
+        storageState: 'playwright-utils/.auth/chromium-storageState.json',
       },
+      dependencies: ['setup-chromium'],
     },
 
     {
       name: 'regression-firefox',
 
       // Cross-browser validation (Firefox)
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Firefox'],
-        storageState: STORAGE_STATE,
+
+        storageState: 'playwright-utils/.auth/firefox-storageState.json',
       },
+      dependencies: ['setup-firefox'],
     },
 
     {
       name: 'regression-webkit',
 
       // Cross-browser validation (Safari/WebKit)
-      grep: /@regression/,
+      grep: /@regression\b/,
 
       use: {
         ...devices['Desktop Safari'],
-        storageState: STORAGE_STATE,
+        
+        storageState: 'playwright-utils/.auth/webkit-storageState.json',
       },
+      dependencies: ['setup-webkit'],
     },
 
     // ==========================

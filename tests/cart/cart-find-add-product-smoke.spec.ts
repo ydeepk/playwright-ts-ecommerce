@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
 // ==========================
 // Test 1: Using locator chaining + role-based targeting
 // ==========================
-test('find specific product', async ({ page }) => {
+test('@smoke find specific product', async ({ page }) => {
 
     console.log('Test 1');
 
@@ -55,7 +55,7 @@ test('find specific product', async ({ page }) => {
 // ==========================
 // Test 2: Using text-based filtering (alternative locator strategy)
 // ==========================
-test('find specific product another way', async ({ page }) => {
+test('@smoke find specific product another way', async ({ page }) => {
 
     console.log('Test 2');
 

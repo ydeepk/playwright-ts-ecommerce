@@ -1,8 +1,8 @@
  // Import Playwright test utilities
 // 'test' defines test cases, 'expect' is used for assertions
 import { test, expect } from '@playwright/test';
-import { CartPage } from '../../pages/CartPage';
-import { ProductPage } from '../../pages/ProductPage';
+import { Cart } from '../../pages/Cart.page';
+import { Product } from '../../pages/Product.page';
 
 // Import test data for data-driven testing
 import * as data from '../../data/products.json';
@@ -18,11 +18,11 @@ for (const product of data.testData) {
      * Validates product selection, cart addition, and subtotal calculation
      * for multiple products defined in external JSON data
      */
-    test(`product subtotal validation - ${product.name}`, async ({ page }) => {
+    test(`@smoke product subtotal validation - ${product.name}`, async ({ page }) => {
 
         // Initialize Page Object Models
-        const cartPage = new CartPage(page);
-        const productPage = new ProductPage(page);
+        const cartPage = new Cart(page);
+        const productPage = new Product(page);
 
         // Prepare to capture API response for product data
         const productsResponsePromise = page.waitForResponse('**/products.json');
@@ -67,11 +67,11 @@ for (const product of data.testData) {
      * Intercepts product API response and modifies product price
      * to validate UI behavior under controlled backend data
      */
-    test(`Mocking and Validating - ${product.name}`, async ({ page, context }) => {
+    test(`@smoke Mocking and Validating - ${product.name}`, async ({ page, context }) => {
 
         // Initialize Page Object Models
-        const cartPage = new CartPage(page);
-        const productPage = new ProductPage(page);
+        const cartPage = new Cart(page);
+        const productPage = new Product(page);
 
         // Intercept products API response and modify payload
         await page.route(`**/products.json`, async (route) => {
@@ -123,10 +123,10 @@ for (const product of data.testData) {
 // ==========================
 // Test: Product cost validation (E2E flow)
 // ==========================
-test('product cost validation', async ({ page }) => {
+test('@smoke product cost validation', async ({ page }) => {
 
     // Initialize Cart Page Object Model
-    const cartPage = new CartPage(page);
+    const cartPage = new Cart(page);
 
     // Navigate to application under test
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');

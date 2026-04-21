@@ -1,23 +1,26 @@
 import { test } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
-import { DashboardPage } from '../../pages/DashboardPage';
-import { NavbarComponent } from '../../pages/components/NavbarComponent';
+import { Login } from '../../pages/Login.page';
+import { Dashboard } from '../../pages/Dashboard.page';
+import { Navbar } from '../../pages/components/Navbar';
 
-// Forces test to start without any persisted authentication
-// Useful when other suites rely on stored sessions (auth fixtures, storageState files)
-test.use({ storageState: undefined });
 
-test.describe('@smoke Logout Flow', () => {
+test.describe('@auth Logout Flow', () => {
 
     test('should allow user to logout successfully', async ({ page }) => {
 
         // Initialize Page Objects and shared components
-        const loginPage = new LoginPage(page);
-        const dashboardPage = new DashboardPage(page);
-        const navbarComponent = new NavbarComponent(page);
+        const loginPage = new Login(page);
+        const dashboardPage = new Dashboard(page);
+        const navbarComponent = new Navbar(page);
 
-        await test.step('Authenticate user with valid credentials', async () => {
-            // Direct login action; assumes credentials are valid and stable
+        await test.step('Navigate to login page', async () => {
+            // Start from a known entry point
+            await loginPage.navigate();
+        });
+
+        await test.step('Authenticate with valid credentials', async () => {
+            // Hardcoded credentials (acceptable for learning/demo)
+            // WARNING: Replace with env/config before using in real projects
             await loginPage.login('Admin', 'admin123');
         });
 

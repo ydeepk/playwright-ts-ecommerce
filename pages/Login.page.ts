@@ -1,6 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 
-export class LoginPage {
+export class Login {
 
     // Playwright page instance (entry point for all browser interactions)
     private readonly page: Page;
@@ -37,6 +37,14 @@ export class LoginPage {
     }
 
     async login(username: string, password: string): Promise<void> {
+
+        if(!this.page.url().includes('/auth/login')) {
+            await this.page.goto('web/index.php/auth/login');
+        }
+
+        await this.page.waitForLoadState('networkidle');
+
+        await this.usernameInput.waitFor({state: 'visible', timeout: 10000});
 
         // Fill credentials
         await this.usernameInput.fill(username);

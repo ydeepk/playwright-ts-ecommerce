@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 // ==========================
 // Test: Verify Add to Cart functionality
 // ==========================
-test('add to cart functionality', async ({ page }) => {
+test('@smoke add to cart functionality', async ({ page }) => {
 
     // Navigate to the ecommerce application under test
     await page.goto('https://react-shopping-cart-67954.firebaseapp.com/');

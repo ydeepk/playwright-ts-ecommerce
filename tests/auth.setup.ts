@@ -2,20 +2,18 @@
 // This distinguishes setup tests from regular test cases
 import { test as setup } from '@playwright/test';
 
-// Import shared storage state path from config
-// Ensures consistency between setup and test execution
-import { STORAGE_STATE } from '../playwright.config';
-
 // Import Login Page Object
 // Encapsulates login logic and locators
-import { LoginPage } from '../pages/LoginPage';
+import { Login } from '../pages/Login.page';
 
 // Setup test responsible for authentication
 // This runs BEFORE other tests and generates reusable session state
-setup('Authenticate', async ({ page }) => {
+setup('Authenticate', async ({ page, browserName }) => {
+
+    const authFile = `playwright-utils/.auth/${browserName}-storageState.json`;
 
     // Initialize login page object
-    const loginPage = new LoginPage(page);
+    const loginPage = new Login(page);
 
     // Navigate to login page
     // Must succeed → otherwise all dependent tests will fail
@@ -32,6 +30,6 @@ setup('Authenticate', async ({ page }) => {
     // Persist authenticated session to file
     // This file is reused by all other tests via storageState
     // Eliminates need to login in every test → improves speed significantly
-    await page.context().storageState({ path: STORAGE_STATE });
+    await page.context().storageState({ path: authFile });
 
 });

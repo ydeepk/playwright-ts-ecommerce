@@ -1,6 +1,7 @@
 import { test } from '@playwright/test';
 import { Navigation } from '../../pages/components/Navigation';
-import { PIMPage } from '../../pages/PIMPage';
+import { PIM } from '../../pages/PIM.page';
+
 
 test.describe('@regression PIM Employee Lifecycle', () => {
 
@@ -8,6 +9,12 @@ test.describe('@regression PIM Employee Lifecycle', () => {
         // Navigate to application root
         // Assumes authenticated session is already available via storageState
         await page.goto('/');
+        // If we are redirected to login, the session is dead
+    if (page.url().includes('auth/login')) {
+        // Option A: Perform an emergency UI login
+        // Option B: Throw a clear error
+        throw new Error("Session expired. Please run auth.setup.ts again.");
+      }
     });
 
     /**
@@ -23,7 +30,7 @@ test.describe('@regression PIM Employee Lifecycle', () => {
 
         // Initialize reusable components and page objects
         const navigation = new Navigation(page);
-        const pimPage = new PIMPage(page);
+        const pimPage = new PIM(page);
 
         // Navigate to PIM module (post-login state assumed)
         await navigation.goToPIM();
