@@ -8,14 +8,14 @@ import { STORAGE_STATE } from '../playwright.config';
 
 // Import Login Page Object
 // Encapsulates login logic and locators
-import { LoginPage } from '../pages/LoginPage';
+import { Login } from '../pages/Login.page';
 
 // Setup test responsible for authentication
 // This runs BEFORE other tests and generates reusable session state
 setup('Authenticate', async ({ page }) => {
 
     // Initialize login page object
-    const loginPage = new LoginPage(page);
+    const loginPage = new Login(page);
 
     // Navigate to login page
     // Must succeed → otherwise all dependent tests will fail
