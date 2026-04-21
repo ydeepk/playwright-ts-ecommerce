@@ -1,11 +1,23 @@
 {
-  "name": "playwright_web",
+  "name": "orangehrm-playwright-automation",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [],
-  "author": "",
+  "description": "End-to-end automation suite for OrangeHRM using Playwright and TypeScript",
+  "main": "playwright.config.ts",
+  "scripts": {
+    "clean:auth": "rm -rf .auth/*.json",
+    "test:regression": "npm run clean:auth && npx playwright test --project=regression-chromium",
+    "test:smoke": "npx playwright test --project=smoke-chromium",
+    "test:auth": "npx playwright test --project=smoke-auth-chromium",
+    "report": "npx playwright show-report"
+  },
+  "keywords": [
+    "playwright",
+    "typescript",
+    "automation",
+    "e2e",
+    "qa-testing"
+  ],
+  "author": "Deepak Yadav <ydeepkcs@gmail.com>",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
