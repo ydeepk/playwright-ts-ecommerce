@@ -1,0 +1,7 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","17984","should complete add → search → delete employee flow","regression-chromium","Fri Apr 24 20:06:32 UTC 2026","passed","Fri Apr 24 20:06:50 UTC 2026","@regression PIM Employee Lifecycle","","",""
+"","8573","Authenticate","setup-webkit","Fri Apr 24 20:06:00 UTC 2026","passed","Fri Apr 24 20:06:08 UTC 2026","","","",""
+"","5863","Authenticate","setup-chromium","Fri Apr 24 20:05:57 UTC 2026","passed","Fri Apr 24 20:06:03 UTC 2026","","","",""
+"","18501","should complete add → search → delete employee flow","regression-webkit","Fri Apr 24 20:06:11 UTC 2026","passed","Fri Apr 24 20:06:29 UTC 2026","@regression PIM Employee Lifecycle","","",""
+"","5613","Authenticate","setup-firefox","Fri Apr 24 20:05:47 UTC 2026","passed","Fri Apr 24 20:05:53 UTC 2026","","","",""
+"","17043","should complete add → search → delete employee flow","regression-firefox","Fri Apr 24 20:05:55 UTC 2026","passed","Fri Apr 24 20:06:12 UTC 2026","@regression PIM Employee Lifecycle","","",""
