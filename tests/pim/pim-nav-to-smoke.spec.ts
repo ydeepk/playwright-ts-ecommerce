@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
 test.describe('@smoke Navigation to PIM', () => {
 
@@ -19,6 +20,20 @@ test.describe('@smoke Navigation to PIM', () => {
 
     test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ pimPage, navigation }) => {
 
+        // --- Allure Metadata ---
+        await allure.label('epic', 'HR Management');
+        await allure.label('feature', 'PIM Module');
+        await allure.story('Module Accessibility & Load');
+
+        await allure.label('severity', 'blocker');
+
+        await allure.label('tag', 'smoke');
+        await allure.label('tag', 'ui');
+        await allure.label('tag', 'navigation');
+
+        await allure.label('layer', 'UI');
+
+        await allure.owner('Deepak');
 
         // Step 1: Navigate to PIM module
         await test.step('Navigate to PIM module', async () => {

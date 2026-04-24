@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
 // Regression suite for PIM employee lifecycle
 // Assumes authenticated session is already handled externally (e.g., storageState)
@@ -30,6 +31,19 @@ test.describe('@regression PIM Employee Lifecycle', () => {
      */
     test('should complete add → search → delete employee flow', async ({ pimPage, navigation }) => {
 
+        // --- Allure Metadata ---
+        await allure.label('epic', 'HR Management');
+        await allure.label('feature', 'PIM Module');
+        await allure.label('story', 'Employee Lifecycle Management');
+
+        await allure.label('severity', 'critical');
+
+        await allure.label('tag', 'regression');
+        await allure.label('tag', 'e2e');
+        await allure.label('tag', 'data-integrity');
+
+        await allure.owner('Deepak');
+        
         await test.step('Navigate to PIM', async()=> {
             // Navigate to PIM module (requires valid session)
             await navigation.goToPIM();
