@@ -1,52 +1,53 @@
-import { test } from '@playwright/test';
-import { Navigation } from '../../pages/components/Navigation';
-import { PIMPage } from '../../pages/PIM.page';
+import { test, expect } from '../../fixtures/base.fixture';
 
-
+// Regression suite for PIM employee lifecycle
+// Assumes authenticated session is already handled externally (e.g., storageState)
 test.describe('@regression PIM Employee Lifecycle', () => {
 
     test.beforeEach(async ({ page }) => {
-        // Navigate to application root
-        // Assumes authenticated session is already available via storageState
+
         await page.goto('/');
-        // If we are redirected to login, the session is dead
-    if (page.url().includes('auth/login')) {
-        // Option A: Perform an emergency UI login
-        // Option B: Throw a clear error
-        throw new Error("Session expired. Please run auth.setup.ts again.");
-      }
+
+        // Defensive check: ensures session is still valid
+        // If redirected to login → storageState expired or missing
+        if (page.url().includes('auth/login')) {
+
+            // Fail fast instead of continuing with broken state
+            // Avoids misleading failures later in test steps
+            throw new Error("Session expired. Please regenerate auth state.");
+        }
     });
 
     /**
      * End-to-end validation of employee lifecycle:
      * Add → Delete → Verify deletion
      *
-     * Covers:
-     * - Employee creation
-     * - Data persistence
+     * Validates:
+     * - Employee creation flow
+     * - Correct data persistence (ID-based targeting)
      * - Deletion workflow
+     * - Post-deletion verification via UI search
      */
-    test('should complete add → search → delete employee flow', async ({ page }) => {
+    test('should complete add → search → delete employee flow', async ({ page, pimPage, navigation }) => {
 
-        // Initialize reusable components and page objects
-        const navigation = new Navigation(page);
-        const pimPage = new PIMPage(page);
+        await test.step('Navigate to PIM', async()=> {
+            // Navigate to PIM module (requires valid session)
+            await navigation.goToPIM();
+        });
 
-        // Navigate to PIM module (post-login state assumed)
-        await navigation.goToPIM();
-
-        // Create employee and capture generated ID (critical for downstream steps)
+        // Create employee and capture system-generated ID
+        // ID is critical to avoid flaky name-based operations
         const employeeId = await test.step('Create new employee', async () => {
-            return await pimPage.addNewEmployee('Ayush', 'Yadav');
+            return await pimPage.addNewEmployee(`Ayush ${Date.now()}`, 'Yadav');
         });
 
         await test.step('Delete employee by ID', async () => {
-            // Uses captured ID to ensure correct record is targeted
+            // Ensures correct record is deleted (no ambiguity)
             await pimPage.deleteEmployeeById(employeeId);
         });
 
         await test.step('Verify employee is no longer present', async () => {
-            // Confirms deletion at UI/search level (not just action success)
+            // UI-level validation (not just API/action success)
             await pimPage.verifyEmployeeNotFoundById(employeeId);
         });
     });
