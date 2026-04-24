@@ -1,6 +1,4 @@
-import { test } from '@playwright/test';
-import { Navigation } from '../../pages/components/Navigation';
-import { PIMPage } from '../../pages/PIM.page';
+import { test, expect } from '../../fixtures/base.fixture';
 
 test.describe('@smoke Navigation to PIM', () => {
 
@@ -8,12 +6,19 @@ test.describe('@smoke Navigation to PIM', () => {
         // This 'wakes up' the browser and takes it to the site
         // Because of Storage State, it will skip the login screen automatically
         await page.goto('/'); 
+
+        // Defensive check: ensures session is still valid
+        // If redirected to login → storageState expired or missing
+        if (page.url().includes('auth/login')) {
+
+            // Fail fast instead of continuing with broken state
+            // Avoids misleading failures later in test steps
+            throw new Error("Session expired. Please regenerate auth state.");
+        }
     });
 
-    test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ page }) => {
+    test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ pimPage, navigation }) => {
 
-        const navigation = new Navigation(page);
-        const pimPage = new PIMPage(page);
 
         // Step 1: Navigate to PIM module
         await test.step('Navigate to PIM module', async () => {

@@ -28,7 +28,7 @@ test.describe('@regression PIM Employee Lifecycle', () => {
      * - Deletion workflow
      * - Post-deletion verification via UI search
      */
-    test('should complete add → search → delete employee flow', async ({ page, pimPage, navigation }) => {
+    test('should complete add → search → delete employee flow', async ({ pimPage, navigation }) => {
 
         await test.step('Navigate to PIM', async()=> {
             // Navigate to PIM module (requires valid session)
