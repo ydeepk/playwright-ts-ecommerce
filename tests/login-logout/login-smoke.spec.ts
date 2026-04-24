@@ -1,6 +1,4 @@
-import { test } from '@playwright/test';
-import { LoginPage } from '../../pages/Login.page';
-import { DashboardPage } from '../../pages/Dashboard.page';
+import { test, expect } from '../../fixtures/base.fixture';
 
 // Ensures test runs in a clean, logged-out state
 // Useful if other tests use stored authentication sessions
@@ -8,11 +6,7 @@ test.use({ storageState: undefined });
 
 test.describe('@auth Login Smoke Suite', () => {
 
-    test('should login successfully with valid credentials', async ({ page }) => {
-
-        // Initialize Page Objects to encapsulate UI interactions
-        const loginPage = new LoginPage(page);
-        const dashboardPage = new DashboardPage(page);
+    test('should login successfully with valid credentials', async ({ loginPage, dashboardPage }) => {
 
         await test.step('Navigate to login page', async () => {
             // Start from a known entry point
