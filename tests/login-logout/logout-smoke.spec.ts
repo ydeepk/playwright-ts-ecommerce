@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
-import { Login } from '../../pages/Login.page';
-import { Dashboard } from '../../pages/Dashboard.page';
+import { LoginPage } from '../../pages/Login.page';
+import { DashboardPage } from '../../pages/Dashboard.page';
 import { Navbar } from '../../pages/components/Navbar';
 
 
@@ -9,8 +9,8 @@ test.describe('@auth Logout Flow', () => {
     test('should allow user to logout successfully', async ({ page }) => {
 
         // Initialize Page Objects and shared components
-        const loginPage = new Login(page);
-        const dashboardPage = new Dashboard(page);
+        const loginPage = new LoginPage(page);
+        const dashboardPage = new DashboardPage(page);
         const navbarComponent = new Navbar(page);
 
         await test.step('Navigate to login page', async () => {

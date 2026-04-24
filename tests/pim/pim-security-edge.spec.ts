@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
-import { Login } from '../../pages/Login.page';
-import { PIM } from '../../pages/PIM.page';
+import { LoginPage } from '../../pages/Login.page';
+import { PIMPage } from '../../pages/PIM.page';
 import { Navigation } from '../../pages/components/Navigation';
 
 
@@ -15,8 +15,8 @@ test.describe('PIM security & Edge cases', () => {
 
     test('verify unauthorise access', async({page})=>{
 
-        const pimpage = new PIM(page);
-        const loginPage = new Login(page);
+        const pimpage = new PIMPage(page);
+        const loginPage = new LoginPage(page);
         const navComponent = new Navigation(page);
 
         await navComponent.goToPIM;
