@@ -32,7 +32,7 @@ test.describe('@auth Login Smoke Suite', () => {
         await test.step('Authenticate with valid credentials', async () => {
             // Hardcoded credentials (acceptable for learning/demo)
             // WARNING: Replace with env/config before using in real projects
-            await loginPage.login('Admin', 'admin123');
+            await loginPage.login('Admi', 'admin123');
         });
 
         await test.step('Verify user is redirected to Dashboard', async () => {
