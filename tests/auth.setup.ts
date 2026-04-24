@@ -1,19 +1,14 @@
 // Import Playwright test runner (aliased as 'setup' for clarity)
 // This distinguishes setup tests from regular test cases
-import { test as setup } from '@playwright/test';
+import { test as setup } from '../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
-// Import Login Page Object
-// Encapsulates login logic and locators
-import { Login } from '../pages/Login.page';
 
 // Setup test responsible for authentication
 // This runs BEFORE other tests and generates reusable session state
-setup('Authenticate', async ({ page, browserName }) => {
+setup('Authenticate', async ({ page, loginPage ,browserName }) => {
 
     const authFile = `playwright-utils/.auth/${browserName}-storageState.json`;
-
-    // Initialize login page object
-    const loginPage = new Login(page);
 
     // Navigate to login page
     // Must succeed → otherwise all dependent tests will fail

@@ -1,17 +1,24 @@
-import { test } from '@playwright/test';
-import { Login } from '../../pages/Login.page';
-import { Dashboard } from '../../pages/Dashboard.page';
-import { Navbar } from '../../pages/components/Navbar';
-
+import { test, expect } from '../../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
 test.describe('@auth Logout Flow', () => {
 
-    test('should allow user to logout successfully', async ({ page }) => {
+    test('should allow user to logout successfully', async ({ loginPage, dashboardPage, navbar }) => {
 
-        // Initialize Page Objects and shared components
-        const loginPage = new Login(page);
-        const dashboardPage = new Dashboard(page);
-        const navbarComponent = new Navbar(page);
+        // --- Allure Metadata ---
+        await allure.label('epic', 'Authentication');
+        await allure.label('feature', 'Session Management');
+        await allure.story('User Logout Flow');
+
+        await allure.label('severity', 'critical');
+
+        await allure.label('tag', 'auth');
+        await allure.label('tag', 'e2e');
+        await allure.label('tag', 'session');
+
+        await allure.label('layer', 'UI');
+
+        await allure.owner('Deepak');
 
         await test.step('Navigate to login page', async () => {
             // Start from a known entry point
@@ -31,7 +38,7 @@ test.describe('@auth Logout Flow', () => {
 
         await test.step('Perform logout from global navigation', async () => {
             // Uses reusable Navbar component → avoids duplication across pages
-            await navbarComponent.logout();
+            await navbar.logout();
         });
 
         await test.step('Validate user is redirected to Login page', async () => {

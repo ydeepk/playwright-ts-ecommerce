@@ -8,7 +8,8 @@
     "test:regression": "npm run clean:auth && npx playwright test --project=regression-chromium",
     "test:smoke": "npx playwright test --project=smoke-chromium",
     "test:auth": "npx playwright test --project=smoke-auth-chromium",
-    "report": "npx playwright show-report"
+    "report": "npx playwright show-report",
+    "test:allure": "npx playwright test && cp issue-categories.json allure-results/ && npx allure serve allure-results"
   },
   "keywords": [
     "playwright",
@@ -22,6 +23,8 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "@types/node": "^25.6.0"
+    "@types/node": "^25.6.0",
+    "allure-commandline": "^2.38.1",
+    "allure-playwright": "^3.7.1"
   }
 }

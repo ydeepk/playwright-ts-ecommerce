@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Infrastructure / Environment Issues",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(timeout|network|ERR_CONNECTION_REFUSED).*"
+  },
+  {
+    "name": "Data Collision / Already Exists",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*(already exists|duplicate|409).*"
+  },
+  {
+    "name": "UI/Locator Changes (Brittle)",
+    "matchedStatuses": ["failed"],
+    "traceRegex": ".*(waiting for locator|target closed).*"
+  },
+  {
+    "name": "Stale Auth / Session Expired",
+    "matchedStatuses": ["broken"],
+    "messageRegex": ".*(unauthorized|401|login failed).*"
+  }
+]

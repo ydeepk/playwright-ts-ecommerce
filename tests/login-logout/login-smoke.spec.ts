@@ -1,6 +1,5 @@
-import { test } from '@playwright/test';
-import { Login } from '../../pages/Login.page';
-import { Dashboard } from '../../pages/Dashboard.page';
+import { test, expect } from '../../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
 // Ensures test runs in a clean, logged-out state
 // Useful if other tests use stored authentication sessions
@@ -8,11 +7,22 @@ test.use({ storageState: undefined });
 
 test.describe('@auth Login Smoke Suite', () => {
 
-    test('should login successfully with valid credentials', async ({ page }) => {
+    test('should login successfully with valid credentials', async ({ loginPage, dashboardPage }) => {
 
-        // Initialize Page Objects to encapsulate UI interactions
-        const loginPage = new Login(page);
-        const dashboardPage = new Dashboard(page);
+        // --- Allure Metadata ---
+        await allure.label('epic', 'Authentication');
+        await allure.label('feature', 'Login');
+        await allure.story('Valid User Login');
+
+        await allure.label('severity', 'blocker');
+
+        await allure.label('tag', 'smoke');
+        await allure.label('tag', 'auth');
+        await allure.label('tag', 'ui');
+
+        await allure.label('layer', 'UI');
+
+        await allure.owner('Deepak');
 
         await test.step('Navigate to login page', async () => {
             // Start from a known entry point
@@ -22,7 +32,7 @@ test.describe('@auth Login Smoke Suite', () => {
         await test.step('Authenticate with valid credentials', async () => {
             // Hardcoded credentials (acceptable for learning/demo)
             // WARNING: Replace with env/config before using in real projects
-            await loginPage.login('Admin', 'admin123');
+            await loginPage.login('Admi', 'admin123');
         });
 
         await test.step('Verify user is redirected to Dashboard', async () => {

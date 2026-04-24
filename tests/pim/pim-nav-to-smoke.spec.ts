@@ -1,6 +1,5 @@
-import { test } from '@playwright/test';
-import { Navigation } from '../../pages/components/Navigation';
-import { PIM } from '../../pages/PIM.page';
+import { test, expect } from '../../fixtures/base.fixture';
+import * as allure from 'allure-js-commons';
 
 test.describe('@smoke Navigation to PIM', () => {
 
@@ -8,12 +7,33 @@ test.describe('@smoke Navigation to PIM', () => {
         // This 'wakes up' the browser and takes it to the site
         // Because of Storage State, it will skip the login screen automatically
         await page.goto('/'); 
+
+        // Defensive check: ensures session is still valid
+        // If redirected to login → storageState expired or missing
+        if (page.url().includes('auth/login')) {
+
+            // Fail fast instead of continuing with broken state
+            // Avoids misleading failures later in test steps
+            throw new Error("Session expired. Please regenerate auth state.");
+        }
     });
 
-    test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ page }) => {
+    test('Verify that the PIM (Personnel Information Management) module loads correctly', async ({ pimPage, navigation }) => {
 
-        const navigation = new Navigation(page);
-        const pimPage = new PIM(page);
+        // --- Allure Metadata ---
+        await allure.label('epic', 'HR Management');
+        await allure.label('feature', 'PIM Module');
+        await allure.story('Module Accessibility & Load');
+
+        await allure.label('severity', 'blocker');
+
+        await allure.label('tag', 'smoke');
+        await allure.label('tag', 'ui');
+        await allure.label('tag', 'navigation');
+
+        await allure.label('layer', 'UI');
+
+        await allure.owner('Deepak');
 
         // Step 1: Navigate to PIM module
         await test.step('Navigate to PIM module', async () => {
