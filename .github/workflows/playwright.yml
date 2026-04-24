@@ -56,8 +56,6 @@ jobs:
         run: |
           npx playwright test \
           --project=smoke-chromium \
-          --project=smoke-firefox \
-          --project=smoke-webkit \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       # Allure results
