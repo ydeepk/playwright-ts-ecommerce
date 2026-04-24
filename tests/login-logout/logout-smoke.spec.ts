@@ -1,17 +1,9 @@
-import { test } from '@playwright/test';
-import { LoginPage } from '../../pages/Login.page';
-import { DashboardPage } from '../../pages/Dashboard.page';
-import { Navbar } from '../../pages/components/Navbar';
+import { test, expect } from '../../fixtures/base.fixture';
 
 
 test.describe('@auth Logout Flow', () => {
 
-    test('should allow user to logout successfully', async ({ page }) => {
-
-        // Initialize Page Objects and shared components
-        const loginPage = new LoginPage(page);
-        const dashboardPage = new DashboardPage(page);
-        const navbarComponent = new Navbar(page);
+    test('should allow user to logout successfully', async ({ loginPage, dashboardPage, navbar }) => {
 
         await test.step('Navigate to login page', async () => {
             // Start from a known entry point
@@ -31,7 +23,7 @@ test.describe('@auth Logout Flow', () => {
 
         await test.step('Perform logout from global navigation', async () => {
             // Uses reusable Navbar component → avoids duplication across pages
-            await navbarComponent.logout();
+            await navbar.logout();
         });
 
         await test.step('Validate user is redirected to Login page', async () => {
