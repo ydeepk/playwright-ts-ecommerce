@@ -37,7 +37,16 @@ export default defineConfig({
   // HTML report for debugging and trace visualization
   reporter: [
     ['html'],
-    ['blob']
+    ['allure-playwright', {
+      resultsDir: 'allure-results',
+      detail: true,
+      suiteTitle: true,
+      environmentInfo: {
+        OS: process.platform,
+        NodeVersion: process.version,
+        Environment: 'QA-Staging'
+      }
+    }]
   ],
 
   // Shared settings across all projects
