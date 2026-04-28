@@ -63,7 +63,7 @@ test.describe('PIM Security & Edge Cases', () => {
 
         await test.step('ESS User: Verify SSN is masked', async () => {
             // You can wrap this in a helper or keep it as is for context switching
-            await essPage.goto('https://opensource-demo.orangehrmlive.com/web/index.php/auth/login');
+            await essPage.goto('/web/index.php/auth/login');
             await essPage.fill('input[name="username"]', USERS.ESS.username); 
             await essPage.fill('input[name="password"]', USERS.ESS.password);
             await essPage.click('button[type="submit"]');
