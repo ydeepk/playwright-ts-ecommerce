@@ -260,7 +260,7 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: |
             QA Automation Report: ${{ steps.analysis.outputs.status }} - ${{ github.event_name }}
-          to: yadavdeepak@outlook.com,kozonhq@mgmail.com
+          to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
           html_body: |
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">

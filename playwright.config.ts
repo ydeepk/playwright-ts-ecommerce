@@ -1,6 +1,10 @@
 // Import Playwright configuration helpers and device presets
 import { chromium, defineConfig, devices } from '@playwright/test';
 
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
 /**
  * Playwright Test Configuration
  *

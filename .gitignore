@@ -13,6 +13,7 @@ playwright-utils/.auth/
 # ==========================
 .DS_Store
 **/.DS_Store
+.env
 
 # ==========================
 # Build / Env

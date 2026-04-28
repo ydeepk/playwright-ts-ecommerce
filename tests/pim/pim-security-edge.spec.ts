@@ -1,82 +1,83 @@
 import { test, expect } from '../../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
+import { USERS } from '../../playwright-utils/credentials';
 
-test.use({storageState: undefined});
+// Clear storage to ensure a clean login state for security testing
+test.use({ storageState: undefined });
 
-test.describe('PIM security & Edge cases', () => { 
+test.describe('PIM Security & Edge Cases', () => {
 
-    test('Unauthorized Access to PIM Admin Features', async({page,loginPage})=>{
-
-        // --- Allure Labels (non-deprecated way) ---
+    test('Unauthorized Access to PIM Admin Features', async ({ page, loginPage, pimPage }) => {
+        // --- Metadata ---
         await allure.label('epic', 'HR Management');
         await allure.label('feature', 'PIM Module');
         await allure.label('story', 'Unauthorized Access Protection');
-
         await allure.label('severity', 'critical');
-
-        await allure.label('tag', 'security');
-        await allure.label('tag', 'negative');
-        await allure.label('tag', 'edge-case');
-
         await allure.owner('Deepak');
-      
 
-        await test.step('Go to Login page', async() => {
+        await test.step('Login with ESS credentials', async () => {
             await loginPage.navigate();
+            // Moved credentials to variables or constants
+            await loginPage.login(USERS.ESS.username, USERS.ESS.password);
         });
 
-
-        await test.step('User is redirected to login page', async() => {
-            await loginPage.redirectToLogin();
+        await test.step('Attempt direct navigation to PIM list', async () => {
+            // Using POM method instead of raw page.goto
+            await pimPage.navigateToEmployeeList(); 
         });
 
-
-        await test.step('Login with credentials', async() => {
-            // danny.rails , Active*89@BT
-            const nonAdminUser = 'danny.rails';
-            const nonAdminPassword = 'Active*89@BT';
-            await loginPage.login(nonAdminUser, nonAdminPassword);
+        await test.step('Verify "Credential Required" error is displayed', async () => {
+            const errorMsg = 'Credential Required';
+            // Correct way to use variable in Regex
+            await expect(page.locator('.oxd-alert--error').getByText(new RegExp(errorMsg, 'i')))
+                .toBeVisible();
         });
 
-        await test.step('Go to PIM page', async () => {
-               await page.goto('https://opensource-demo.orangehrmlive.com/web/index.php/pim/viewEmployeeList');
-        });
-
-        await test.step('Should display Credential required', async() =>{
-            const credRequiredText = 'Credential Required';
-            await expect(page.locator('.oxd-alert--error').getByText(/credRequiredText/i)).toBeVisible();
-        });
-
-        await test.step('Should not display PIM link in Navigation', async() => {
+        await test.step('Verify PIM link is hidden from side navigation', async () => {
+            // This is a great check for UI-level security
             await expect(page.getByRole('link', { name: 'PIM' })).toBeHidden();
         });
-
     });
 
-    test('verify Data Masking/Visibility', async({page,loginPage})=>{
+    test('should mask sensitive employee data for non-admin users', async ({ page, browser, pimPage, loginPage }) => {
+        const firstName = 'Secure';
+        const lastName = 'User';
+        const ssnValue = '999-66-1111';
+        let generatedId: string;
 
-       // --- Allure Metadata ---
-        await allure.label('epic', 'HR Management');
-        await allure.label('feature', 'PIM Module');
-        await allure.story('Sensitive Data Protection');
+        await test.step('Admin: Create employee with SSN', async () => {
+            // Note: This assumes current state is Admin (from your base fixture/auth)
+            generatedId = await pimPage.addNewEmployee(firstName, lastName);
+            
+            // POM method for navigation
+            await pimPage.navigateToEmployeeDetails(generatedId);
+            
+            // Logic to fill SSN should be inside pimPage.fillPersonalDetails({...})
+            await pimPage.updateSSN(ssnValue);
+            await expect(page.getByText('Successfully Updated')).toBeVisible();
+        });
 
-        await allure.label('severity', 'critical');
+        // Simulating the second user
+        const essContext = await browser.newContext();
+        const essPage = await essContext.newPage();
 
-        await allure.label('tag', 'security');
-        await allure.label('tag', 'access-control');
-        await allure.label('tag', 'edge-case');
+        await test.step('ESS User: Verify SSN is masked', async () => {
+            // You can wrap this in a helper or keep it as is for context switching
+            await essPage.goto('https://opensource-demo.orangehrmlive.com/web/index.php/auth/login');
+            await essPage.fill('input[name="username"]', USERS.ESS.username); 
+            await essPage.fill('input[name="password"]', USERS.ESS.password);
+            await essPage.click('button[type="submit"]');
 
-        await allure.label('layer', 'UI');
+            await essPage.goto(`/web/index.php/pim/viewPersonalDetails/empNumber/${generatedId}`);
+            
+            const ssnField = essPage.locator('label:has-text("SSN Number")').locator('xpath=./../..//input');
+            const actualValue = await ssnField.inputValue();
+            
+            expect(actualValue).not.toBe(ssnValue); 
+            expect(actualValue).toContain('*'); 
+            await expect(ssnField).toBeDisabled();
+        });
 
-        await allure.owner('Deepak');
-
-        // Step 1: As an Admin, create an employee with sensitive details (e.g., Date of Birth or SSN if available).
-        // Step 2: Login as a different non-admin user.
-        // Step 3: Search for that employee.
-        // Step 4: Verify that sensitive fields are either hidden, read-only, or masked (asterisks).
-      
-
-
+        await essContext.close();
     });
-
 });
