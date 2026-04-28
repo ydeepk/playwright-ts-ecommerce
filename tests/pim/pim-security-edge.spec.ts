@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
-import { USERS } from '../../playwright-utils/credentials';
+import { USERS } from '../../config/credentials';
 
 // Clear storage to ensure a clean login state for security testing
 test.use({ storageState: undefined });
