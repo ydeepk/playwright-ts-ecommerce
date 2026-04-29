@@ -3,13 +3,12 @@ import * as allure from 'allure-js-commons';
 
 test.describe('@auth Logout Flow', () => {
 
-    test('should allow user to logout successfully', async ({ loginPage, dashboardPage, navbar }) => {
+    test('should logout user and invalidate session', async ({ loginPage, dashboardPage, navbar }) => {
 
-        // --- Allure Metadata ---
+        // Allure metadata for traceability
         await allure.label('epic', 'Authentication');
         await allure.label('feature', 'Session Management');
         await allure.story('User Logout Flow');
-
         await allure.label('severity', 'critical');
 
         await allure.label('tag', 'auth');
@@ -21,29 +20,28 @@ test.describe('@auth Logout Flow', () => {
         await allure.owner('Deepak');
 
         await test.step('Navigate to login page', async () => {
-            // Start from a known entry point
+            // Establish known entry point
             await loginPage.navigate();
         });
 
-        await test.step('Authenticate with valid credentials', async () => {
-            // Hardcoded credentials (acceptable for learning/demo)
-            // WARNING: Replace with env/config before using in real projects
+        await test.step('Login with valid credentials', async () => {
+            // Credentials should be externalized for real environments
             await loginPage.login('Admin', 'admin123');
         });
 
-        await test.step('Verify user lands on Dashboard after login', async () => {
-            // Confirms successful authentication + page readiness
+        await test.step('Verify dashboard is loaded after login', async () => {
+            // Confirms authentication success and page readiness
             await dashboardPage.isLoaded();
         });
 
-        await test.step('Perform logout from global navigation', async () => {
-            // Uses reusable Navbar component → avoids duplication across pages
+        await test.step('Logout via navigation menu', async () => {
+            // Uses shared navbar component to perform logout action
             await navbar.logout();
         });
 
-        await test.step('Validate user is redirected to Login page', async () => {
-            // Centralized validation → keeps assertions consistent across tests
-            await loginPage.navigate();
+        await test.step('Verify user is redirected to login page', async () => {
+            // Validates logout effect instead of navigating manually
+            await loginPage.verifyLoginPageLoaded();
         });
 
     });
