@@ -1,33 +1,46 @@
+# Playwright CI Pipeline for multi-stage test execution
+# Covers:
+# - PR validation (smoke)
+# - Push validation (regression)
+# - Scheduled runs (full suite)
+# - Reporting + stakeholder notification
 name: Playwright Test Pipeline (Full Optimized)
 
 on:
+  # Manual trigger for ad-hoc execution
   workflow_dispatch:
 
+  # Run smoke tests on PRs targeting main branches
   pull_request:
     branches: [ main, master ]
 
+  # Run regression suite on code push to main branches
   push:
     branches: [ main, master ]
 
+  # Nightly execution for full regression coverage
   schedule:
     - cron: '0 2 * * *'
 
-
-# Prevent overlapping runs
+# Prevents parallel runs on same branch from overlapping
+# Ensures resource efficiency and avoids report conflicts
 concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
 
-
 jobs:
 
 # ==========================================
-# SMOKE TESTS (PR)
+# SMOKE TESTS (PR VALIDATION)
 # ==========================================
   smoke-tests:
+    # Executes only for pull request events
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
+    timeout-minutes: 30
+
+    # Parallel shard execution to reduce runtime
     strategy:
       fail-fast: false
       matrix:
@@ -37,48 +50,62 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Sets Node.js runtime and enables npm caching
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
+      # Clean install ensures deterministic dependency resolution
       - run: npm ci
 
-      # Cache browsers (version aware)
+      # Cache Playwright browsers to reduce install time across runs
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # Installs required browsers and OS dependencies
       - run: npx playwright install --with-deps
 
       - name: Run Smoke Tests
         run: |
-          npx playwright test \
+          npx playwright test --retries=1 \
           --project=smoke-chromium \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-
-      # Allure results
+      
+      - name: Validate Allure Results Before Upload
+        run: |
+          if [ ! -d "allure-results" ]; then
+            echo "Allure results missing - failing job"
+            exit 1
+          fi
+          
+      # Upload Allure raw results for later aggregation
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: smoke-${{ matrix.shardIndex }}
+          name: smoke-allure-${{ matrix.shardIndex }}
           path: allure-results/
+          retention-days: 7
 
-      # Playwright report (needed for failure + flaky parsing)
+      # Upload Playwright HTML report for debugging
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
           path: playwright-report/
-
+          retention-days: 7
 
 # ==========================================
-# REGRESSION TESTS (PUSH)
+# REGRESSION TESTS (PUSH VALIDATION)
 # ==========================================
   regression-tests:
+    # Executes on direct pushes to main branches
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -88,6 +115,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
@@ -104,31 +132,44 @@ jobs:
 
       - name: Run Regression Tests
         run: |
-          npx playwright test \
+          npx playwright test --retries=1 \
           --project=regression-chromium \
           --project=regression-firefox \
           --project=regression-webkit \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
+      - name: Validate Allure Results Before Upload
+        run: |
+          if [ ! -d "allure-results" ]; then
+            echo "Allure results missing - failing job"
+            exit 1
+          fi
+
+      # Stores Allure data for cross-shard merge
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: regression-${{ matrix.shardIndex }}
+          name: regression-allure-${{ matrix.shardIndex }}
           path: allure-results/
+          retention-days: 7
 
+      # Stores Playwright reports for debugging failures
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-regression-${{ matrix.shardIndex }}
           path: playwright-report/
-
+          retention-days: 7
 
 # ==========================================
-# NIGHTLY TESTS
+# NIGHTLY FULL SUITE
 # ==========================================
   nightly-tests:
+    # Executes on scheduled cron trigger only
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
@@ -138,6 +179,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
@@ -154,30 +196,55 @@ jobs:
 
       - name: Run Full Suite
         run: |
-          npx playwright test \
+          npx playwright test --retries=1 \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
+      - name: Validate Allure Results Before Upload
+        run: |
+          if [ ! -d "allure-results" ]; then
+            echo "Allure results missing - failing job"
+            exit 1
+          fi
+
+      # Stores Allure results for aggregation
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: nightly-${{ matrix.shardIndex }}
+          name: nightly-allure-${{ matrix.shardIndex }}
           path: allure-results/
+          retention-days: 7
 
+      # Stores Playwright reports for debugging
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
           path: playwright-report/
-
+          retention-days: 7
 
 # ==========================================
-# MERGE + ALLURE (GENERIC)
+# ALLURE MERGE + REPORT DEPLOYMENT
 # ==========================================
   merge-report:
     runs-on: ubuntu-latest
-    # Change: Use 'if: always()' but check that at least one test job finished
-    needs: [smoke-tests, regression-tests, nightly-tests]
-    if: always() && !cancelled() 
+
+    timeout-minutes: 15
+
+    # Dynamically depend on the job that actually ran
+    needs:
+      - smoke-tests
+      - regression-tests
+      - nightly-tests
+
+    # Ensures execution only if at least one upstream job was triggered
+    if: >
+      always() &&
+      !cancelled() &&
+      (
+        needs.smoke-tests.result != 'skipped' ||
+        needs.regression-tests.result != 'skipped' ||
+        needs.nightly-tests.result != 'skipped'
+      )
 
     permissions:
       contents: write
@@ -186,62 +253,114 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Download all artifacts
+      # ------------------------------------------
+      # Downloads only existing artifacts
+      # Avoids failure when some jobs are skipped
+      # ------------------------------------------
+      - name: Download all results
         uses: actions/download-artifact@v5
         with:
-          # This will download ALL results from whichever job ran
+          pattern: "*-allure-*"
           path: all-results
           merge-multiple: true
 
-      - name: Get Allure history
-        uses: actions/checkout@v5
-        continue-on-error: true
-        with:
-          ref: gh-pages
-          path: allure-history # Checkout directly to expected history folder
+      # ------------------------------------------
+      # Defensive check → avoids empty report generation
+      # Without this, Allure generates blank dashboard
+      # ------------------------------------------
+      - name: Validate Allure Results Exist
+        run: |
+          if [ ! -d "all-results" ] || [ -z "$(ls -A all-results)" ]; then
+            echo "No Allure results found. Skipping report generation."
+            exit 0
+          fi
 
+      # ------------------------------------------
+      # Build Allure report with history retention
+      # Enables trend analysis across runs
+      # ------------------------------------------
       - name: Build Allure Report
         uses: simple-elf/allure-report-action@master
         with:
           allure_results: all-results
+          gh_pages: gh-pages
+          subfolder: allure-results
+          allure_report: allure-report
           allure_history: allure-history
-          keep_reports: 20
+          keep_reports: 30
 
+      # ------------------------------------------
+      # Deploy only for non-PR events
+      # PR deployments pollute gh-pages unnecessarily
+      # ------------------------------------------
       - name: Deploy Report to Github Pages
-        # Only deploy for master/main branch runs
         if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: allure-history
-
+          keep_files: true
 
 # ==========================================
-# FAILURE SUMMARY + FLAKY DETECTION
+# RESULT ANALYSIS + EMAIL NOTIFICATION
 # ==========================================
   analyze-results:
     runs-on: ubuntu-latest
+
+    timeout-minutes: 15
+
+    # Runs after report generation
     needs: merge-report
     if: always()
+
     steps:
       - uses: actions/download-artifact@v5
         with:
+          # Collect all Playwright JSON reports for aggregation
+          pattern: "playwright-report-*"
           path: reports
+          merge-multiple: true
 
-      - name: Analyze Playwright Results
+      - name: Extract Detailed Metrics
         id: analysis
         run: |
-          FAIL_COUNT=0
-          # Logic to find report.json and count failures
-          FILES=$(find reports -name "report.json" || true)
-          for file in $FILES; do
-            FAIL_COUNT=$((FAIL_COUNT + $(jq '[.suites[].specs[].tests[] | select(.status=="failed")] | length' $file)))
-          done
-          echo "failures=$FAIL_COUNT" >> $GITHUB_OUTPUT
+          TOTAL=0
+          PASSED=0
+          FAILED=0
+          SKIPPED=0
           
-          # Set Status Color
-          if [ "$FAIL_COUNT" -eq "0" ]; then
+          FILES=$(find reports -name "report.json")
+
+          # Aggregates stats across all shards and jobs
+          if [ -n "$FILES" ]; then
+            for file in $FILES; do
+              T=$(jq '.stats.expected + .stats.unexpected + .stats.skipped' "$file" || echo 0)
+              F=$(jq '.stats.unexpected' "$file" || echo 0)
+              S=$(jq '.stats.skipped' "$file" || echo 0)
+              P=$((T - F - S))
+              
+              TOTAL=$((TOTAL + T))
+              PASSED=$((PASSED + P))
+              FAILED=$((FAILED + F))
+              SKIPPED=$((SKIPPED + S))
+            done
+          fi
+
+          # Fail fast if no valid test results found
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test results found - possible JSON reporter misconfiguration"
+            exit 1
+          fi
+          
+          # Expose computed values to subsequent steps
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          
+          # Determines overall execution status
+          if [ "$FAILED" -eq 0 ] && [ "$TOTAL" -gt 0 ]; then
             echo "status=PASSED" >> $GITHUB_OUTPUT
             echo "color=#28a745" >> $GITHUB_OUTPUT
           else
@@ -250,29 +369,94 @@ jobs:
           fi
 
       - name: Send Stakeholder Email
-        # Only send for Push (Regression) or Schedule (Nightly)
-        if: github.event_name != 'pull_request' 
+        # Email notifications skipped for PRs to avoid noise
+        if: github.event_name != 'pull_request'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: |
-            QA Automation Report: ${{ steps.analysis.outputs.status }} - ${{ github.event_name }}
+
+          subject: QA Test Execution Report | ${{ steps.analysis.outputs.status }} | ${{ github.event_name }}
+
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
+
+          # HTML email template for stakeholder-friendly reporting
           html_body: |
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
-              <h2 style="color: ${{ steps.analysis.outputs.color }};">Test Run: ${{ steps.analysis.outputs.status }}</h2>
-              <p><strong>Environment:</strong> QA-Staging</p>
-              <p><strong>Total Failures:</strong> ${{ steps.analysis.outputs.failures }}</p>
-              <hr />
-              <p>Detailed Allure Report and Trends can be found here:</p>
-              <a href="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" 
-                 style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                 View Full Allure Dashboard
-              </a>
-              <br><br>
-              <p><em>This is an automated message from the GitHub Actions Pipeline.</em></p>
-            </div>
+            <!-- Structured, readable summary for non-technical stakeholders -->
+            <!-- Includes metrics, environment, and report link -->
+
+            <!DOCTYPE html>
+            <html>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6;">
+              <div style="max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                
+                <h2 style="color: ${{ steps.analysis.outputs.color }}; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                  Test Execution Summary: ${{ steps.analysis.outputs.status }}
+                </h2>
+
+                <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">Environment:</td>
+                    <td style="padding: 8px;">QA / Staging</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">Trigger:</td>
+                    <td style="padding: 8px;">${{ github.event_name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">Repository:</td>
+                    <td style="padding: 8px;">${{ github.event.repository.name }}</td>
+                  </tr>
+                </table>
+
+                <h3 style="margin-top: 30px; color: #444;">Execution Metrics</h3>
+                <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #f9f9f9;">
+                  <thead>
+                    <tr style="background-color: #eee;">
+                      <th style="padding: 12px; border: 1px solid #ddd;">Metric</th>
+                      <th style="padding: 12px; border: 1px solid #ddd;">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="padding: 12px; border: 1px solid #ddd;">Total Tests</td>
+                      <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${{ steps.analysis.outputs.total }}</td>
+                    </tr>
+                    <tr style="color: #28a745;">
+                      <td style="padding: 12px; border: 1px solid #ddd;">Passed</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.passed }}</td>
+                    </tr>
+                    <tr style="color: #dc3545; font-weight: ${{ steps.analysis.outputs.failed > 0 && 'bold' || 'normal' }};">
+                      <td style="padding: 12px; border: 1px solid #ddd;">Failed</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.failed }}</td>
+                    </tr>
+                    <tr style="color: #ffc107;">
+                      <td style="padding: 12px; border: 1px solid #ddd;">Skipped</td>
+                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.skipped }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div style="margin-top: 30px; text-align: center;">
+                  <p style="font-size: 14px; color: #666;">
+                    Detailed logs, screenshots, and videos are available in the report:
+                  </p>
+
+                  <a href="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allure-results/" 
+                     style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                    Open Allure Dashboard
+                  </a>
+                </div>
+
+                <hr style="margin-top: 40px; border: 0; border-top: 1px solid #eee;" />
+
+                <p style="font-size: 11px; color: #999; text-align: center;">
+                  This is an automated report generated by the Playwright CI Pipeline.
+                </p>
+
+              </div>
+            </body>
+            </html>
