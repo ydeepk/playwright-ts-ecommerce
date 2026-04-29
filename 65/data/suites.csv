@@ -1,0 +1,7 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","5423","Authenticate","setup-firefox","Wed Apr 29 18:34:04 UTC 2026","passed","Wed Apr 29 18:34:10 UTC 2026","","","",""
+"","7983","Authenticate","setup-webkit","Wed Apr 29 18:34:06 UTC 2026","passed","Wed Apr 29 18:34:14 UTC 2026","","","",""
+"","15077","should complete employee lifecycle: create → delete → verify absence","regression-chromium","Wed Apr 29 18:34:19 UTC 2026","passed","Wed Apr 29 18:34:34 UTC 2026","@regression PIM Employee Lifecycle","","",""
+"","18884","should complete employee lifecycle: create → delete → verify absence","regression-webkit","Wed Apr 29 18:34:16 UTC 2026","passed","Wed Apr 29 18:34:35 UTC 2026","@regression PIM Employee Lifecycle","","",""
+"","15561","should complete employee lifecycle: create → delete → verify absence","regression-firefox","Wed Apr 29 18:34:12 UTC 2026","passed","Wed Apr 29 18:34:27 UTC 2026","@regression PIM Employee Lifecycle","","",""
+"","5429","Authenticate","setup-chromium","Wed Apr 29 18:34:12 UTC 2026","passed","Wed Apr 29 18:34:17 UTC 2026","","","",""
