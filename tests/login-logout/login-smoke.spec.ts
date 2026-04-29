@@ -2,18 +2,17 @@ import { test, expect } from '../../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
 
 // Ensures test runs in a clean, logged-out state
-// Useful if other tests use stored authentication sessions
+// Prevents interference from stored authentication sessions
 test.use({ storageState: undefined });
 
 test.describe('@auth Login Smoke Suite', () => {
 
     test('should login successfully with valid credentials', async ({ loginPage, dashboardPage }) => {
 
-        // --- Allure Metadata ---
+        // Allure metadata for reporting and traceability
         await allure.label('epic', 'Authentication');
         await allure.label('feature', 'Login');
         await allure.story('Valid User Login');
-
         await allure.label('severity', 'blocker');
 
         await allure.label('tag', 'smoke');
@@ -25,18 +24,17 @@ test.describe('@auth Login Smoke Suite', () => {
         await allure.owner('Deepak');
 
         await test.step('Navigate to login page', async () => {
-            // Start from a known entry point
+            // Establish known entry point
             await loginPage.navigate();
         });
 
-        await test.step('Authenticate with valid credentials', async () => {
-            // Hardcoded credentials (acceptable for learning/demo)
-            // WARNING: Replace with env/config before using in real projects
+        await test.step('Login with valid credentials', async () => {
+            // Credentials should be externalized for real environments
             await loginPage.login('Admin', 'admin123');
         });
 
-        await test.step('Verify user is redirected to Dashboard', async () => {
-            // Reuse POM-level validation to avoid duplicating assertions
+        await test.step('Verify dashboard is loaded after login', async () => {
+            // Confirms successful authentication and page readiness
             await dashboardPage.isLoaded();
         });
     });

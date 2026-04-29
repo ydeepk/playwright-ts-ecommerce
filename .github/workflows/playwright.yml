@@ -35,9 +35,9 @@ jobs:
         shardTotal: [2]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
 
       # Cache browsers (version aware)
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -59,14 +59,14 @@ jobs:
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       # Allure results
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: smoke-${{ matrix.shardIndex }}
           path: allure-results/
 
       # Playwright report (needed for failure + flaky parsing)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
@@ -87,15 +87,15 @@ jobs:
         shardTotal: [3]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
       - run: npm ci
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -110,13 +110,13 @@ jobs:
           --project=regression-webkit \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: regression-${{ matrix.shardIndex }}
           path: allure-results/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-regression-${{ matrix.shardIndex }}
@@ -137,15 +137,15 @@ jobs:
         shardTotal: [4]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
       - run: npm ci
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -157,13 +157,13 @@ jobs:
           npx playwright test \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: nightly-${{ matrix.shardIndex }}
           path: allure-results/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
@@ -184,17 +184,17 @@ jobs:
       pages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           # This will download ALL results from whichever job ran
           path: all-results
           merge-multiple: true
 
       - name: Get Allure history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         continue-on-error: true
         with:
           ref: gh-pages
@@ -225,7 +225,7 @@ jobs:
     needs: merge-report
     if: always()
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: reports
 
@@ -260,7 +260,7 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: |
             QA Automation Report: ${{ steps.analysis.outputs.status }} - ${{ github.event_name }}
-          to: yadavdeepak@outlook.com,kozonhq@mgmail.com
+          to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
           html_body: |
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
