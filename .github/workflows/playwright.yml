@@ -332,6 +332,11 @@ jobs:
           
           FILES=$(find reports -name "report.json")
 
+          if [ -z "$FILES" ]; then
+            echo "JSON report not found - reporter misconfiguration or artifact issue"
+            exit 1
+          fi
+
           # Aggregates stats across all shards and jobs
           if [ -n "$FILES" ]; then
             for file in $FILES; do
