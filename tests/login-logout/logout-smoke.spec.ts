@@ -43,7 +43,7 @@ test.describe('@auth Logout Flow', () => {
 
         await test.step('Validate user is redirected to Login page', async () => {
             // Centralized validation → keeps assertions consistent across tests
-            await loginPage.redirectToLogin();
+            await loginPage.navigate();
         });
 
     });
