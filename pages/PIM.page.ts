@@ -8,8 +8,8 @@ export class PIMPage {
 
     private readonly page: Page;
 
-    // Use role-based locators (more stable than CSS)
-    private readonly addEmployeeButton: Locator;
+    // Role-based locators → resilient and readable
+    private readonly addButton: Locator;
     private readonly saveButton: Locator;
     private readonly searchButton: Locator;
     private readonly resetButton: Locator;
@@ -17,20 +17,35 @@ export class PIMPage {
     private readonly firstNameInput: Locator;
     private readonly lastNameInput: Locator;
 
+    // Centralized locators improve reuse and reduce duplication
+    private readonly headerTitle: Locator;
+    private readonly employeeTable: Locator;
+    private readonly tableRecords: Locator;
+    private readonly recordsFoundText: Locator;
+  
     // ==========================
     // Constructor
     // ==========================
     constructor(page: Page) {
         this.page = page;
 
-        // Prefer accessible roles → resilient to UI changes
-        this.addEmployeeButton = page.getByRole('button', { name: 'Add' });
+        this.addButton = page.getByRole('button', { name: 'Add' });
         this.saveButton = page.getByRole('button', { name: 'Save' });
         this.searchButton = page.getByRole('button', { name: 'Search' });
         this.resetButton = page.getByRole('button', { name: 'Reset' });
 
         this.firstNameInput = page.getByPlaceholder('First Name');
         this.lastNameInput = page.getByPlaceholder('Last Name');
+
+        this.headerTitle = page.locator('.oxd-topbar-header-title');
+        this.employeeTable = page.locator('.orangehrm-container');
+
+        // Row-level locator reused across validations → good design
+        this.tableRecords = page.locator('.oxd-table-card');
+
+        this.recordsFoundText = page
+            .locator('span.oxd-text--span')
+            .filter({ hasText: /Records Found/ });
     }
 
     /**
@@ -38,12 +53,12 @@ export class PIMPage {
      * Scoped locator → avoids false positives across table
      */
     private getEmployeeRow(employeeId: string): Locator {
-        return this.page.locator('.oxd-table-card').filter({ hasText: employeeId });
+        return this.tableRecords.filter({ hasText: employeeId });
     }
 
     /**
      * Explicit navigation method
-     * Avoids hidden navigation side-effects in other methods
+     * Removes hidden coupling from other methods
      */
     async navigateToEmployeeList(): Promise<void> {
         await this.page.goto('/web/index.php/pim/viewEmployeeList');
@@ -52,25 +67,23 @@ export class PIMPage {
 
     /**
      * Adds a new employee
-     * NOTE: Only performs action + minimal success validation
-     * No hidden dependencies or extra flows
+     * Clean flow with minimal assumptions
      */
     async addNewEmployee(firstName: string, lastName: string): Promise<string> {
 
-        await this.addEmployeeButton.click();
+        await this.addButton.click();
 
         await this.firstNameInput.fill(firstName);
         await this.lastNameInput.fill(lastName);
 
-        // Locate Employee ID field via label grouping (still slightly fragile)
+        // Label-based targeting → acceptable but still slightly brittle
         const idInput = this.page
             .locator('.oxd-input-group', { hasText: 'Employee Id' })
             .locator('input');
 
-        // Wait for auto-generated ID to be populated
         await expect(idInput).not.toHaveValue('', { timeout: 10000 });
 
-        // Better uniqueness (avoid collision in parallel runs)
+        // Better uniqueness vs simple timestamp
         const uniqueId = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
         await idInput.fill(uniqueId);
 
@@ -78,7 +91,7 @@ export class PIMPage {
 
         await this.saveButton.click();
 
-        // URL-based validation → more stable than toast
+        // URL validation is stable vs toast-based validation
         await expect(this.page).toHaveURL(/viewPersonalDetails/, { timeout: 20000 });
 
         return generatedId;
@@ -86,11 +99,10 @@ export class PIMPage {
 
     /**
      * Search employee by ID
-     * No hidden navigation → caller must control flow
+     * Enforces page precondition explicitly
      */
     async searchEmployeeById(employeeId: string): Promise<void> {
 
-        // Explicit failure instead of silent navigation
         await expect(this.page).toHaveURL(/viewEmployeeList/);
 
         await this.resetButton.click();
@@ -102,42 +114,41 @@ export class PIMPage {
 
         await this.searchButton.click();
 
-        // Row-level validation (not full table text)
+        // Row-level assertion → avoids false positives from table text
         await expect(this.getEmployeeRow(employeeId)).toHaveCount(1, { timeout: 10000 });
     }
 
     /**
      * Delete employee
-     * No hidden dependency → flow is explicit
+     * Flow is explicit, no hidden dependencies
      */
     async deleteEmployeeById(employeeId: string): Promise<void> {
 
-        // Caller must ensure navigation + search
         await expect(this.page).toHaveURL(/viewEmployeeList/);
 
         const employeeRow = this.getEmployeeRow(employeeId);
 
         await expect(employeeRow).toHaveCount(1);
 
-        // Avoid fragile icon selector
-        await employeeRow.getByRole('button').click(); // Assumes only one action button; refine if needed
+        // NOTE: Assumes single actionable button in row → refine if UI evolves
+        await employeeRow.getByRole('button').click();
 
         await this.page.getByRole('button', { name: 'Yes, Delete' }).click();
 
-        // Avoid relying on toast → verify actual system state
+        // State validation instead of toast → correct approach
         await this.searchButton.click();
         await expect(this.getEmployeeRow(employeeId)).toHaveCount(0);
     }
 
     /**
      * Verify employee absence
-     * No silent error swallowing
+     * Handles async loading safely
      */
     async verifyEmployeeNotFoundById(employeeId: string): Promise<void> {
 
         const spinner = this.page.locator('.oxd-loading-spinner');
 
-        // Controlled optional wait (no silent failure)
+        // Conditional wait avoids unnecessary timeout failures
         if (await spinner.isVisible()) {
             await spinner.waitFor({ state: 'detached', timeout: 5000 });
         }
@@ -151,9 +162,9 @@ export class PIMPage {
 
     /**
      * Navigate to employee details
-     * No test.step → POM stays framework-agnostic
+     * Clean, deterministic navigation
      */
-    async navigateToEmployeeDetails(id: string): Promise<void> {
+    async navigateToEmployeeDetails(id: string | undefined): Promise<void> {
 
         await this.page.goto(`/web/index.php/pim/viewPersonalDetails/empNumber/${id}`);
 
@@ -164,7 +175,7 @@ export class PIMPage {
 
     /**
      * Update SSN
-     * No test.step → reporting belongs to test layer
+     * Keeps POM focused on actions, not test reporting
      */
     async updateSSN(ssnValue: string): Promise<void> {
 
@@ -176,8 +187,33 @@ export class PIMPage {
 
         await this.page.getByRole('button', { name: 'Save' }).first().click();
 
-        // Still uses toast → acceptable as secondary signal, not primary validation
+        // NOTE: Toast used as secondary signal only (acceptable fallback)
         const successToast = this.page.getByText('Successfully Updated');
         await expect(successToast).toBeVisible();
+    }
+
+    async verifyPIMHeader(): Promise<void> {
+        // High-level UI validation (smoke-level check)
+        await expect(this.headerTitle).toBeVisible();
+        await expect(this.headerTitle).toContainText('PIM');
+    }
+
+    async verifyDataTableVisibility(): Promise<void> {
+        // Validates table container presence (page readiness indicator)
+        await expect(this.employeeTable).toBeVisible();
+    }
+    
+    async verifyRecordExistsInTable(): Promise<void> {
+        // Combines UI indicator + DOM validation for stronger confidence
+        await expect(this.recordsFoundText).toBeVisible();
+        
+        const count = await this.tableRecords.count();
+        expect(count).toBeGreaterThan(0);
+    }
+
+    async verifyIfEnabledButton(): Promise<void> {
+        // Validates critical actions are interactive (sanity check)
+        await expect(this.addButton).toBeEnabled();
+        await expect(this.searchButton).toBeEnabled();
     }
 }
