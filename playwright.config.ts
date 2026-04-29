@@ -66,34 +66,36 @@ export default defineConfig({
    * - HTML: built-in Playwright report (quick debugging)
    * - Allure: advanced reporting (history, trends, CI integration)
    */
-  reporter: [
-    ['html'],
+reporter: [
+  // HTML report for debugging (opens locally or via artifact)
+  ['html', { outputFolder: 'playwright-report', open: 'never' }],
 
-    ['allure-playwright', {
-      resultsDir: 'allure-results',
+  // JSON report REQUIRED for pipeline metrics aggregation
+  ['json', { outputFile: 'playwright-report/report.json' }],
 
-      // Enables step-level reporting
-      detail: true,
+  // Allure report integration (for rich reporting + history)
+  ['allure-playwright', {
+    resultsDir: 'allure-results',
 
-      // Output directory for Allure results
-      outputFolder: 'allure-results',
+    // Enables step-level reporting (good for debugging)
+    detail: true,
 
-      // Disable suite title duplication
-      suiteTitle: false,
+    // Keep consistent with pipeline artifact path
+    outputFolder: 'allure-results',
 
-      /**
-       * Metadata shown in Allure reports
-       * Helps identify execution context (very useful in CI)
-       */
-      environmentInfo: {
-        OS: process.platform,
-        NodeVersion: process.version,
+    // Avoid duplicate suite names in Allure UI
+    suiteTitle: false,
 
-        // Consider moving to ENV (e.g., TEST_ENV) for flexibility
-        Environment: 'QA-Staging'
-      }
-    }]
-  ],
+    // Execution metadata visible in Allure dashboard
+    environmentInfo: {
+      OS: process.platform,
+      NodeVersion: process.version,
+
+      // Better: inject via env (CI/CD flexibility)
+      Environment: process.env.TEST_ENV || 'QA-Staging'
+    }
+  }]
+],
 
   /**
    * Shared settings applied to all projects
