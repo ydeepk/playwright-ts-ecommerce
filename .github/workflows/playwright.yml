@@ -74,6 +74,16 @@ jobs:
           --project=smoke-chromium \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
       
+      - name: Copy Allure Categories
+        if: always()
+        run: cp issue-categories.json allure-results/
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: regression-allure-${{ matrix.shardIndex }}
+          path: allure-results/
+
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -138,6 +148,16 @@ jobs:
           --project=regression-webkit \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
+      - name: Copy Allure Categories
+        if: always()
+        run: cp issue-categories.json allure-results/
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: regression-allure-${{ matrix.shardIndex }}
+          path: allure-results/
+
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -198,7 +218,17 @@ jobs:
         run: |
           npx playwright test --retries=1 \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+      
+      - name: Copy Allure Categories
+        if: always()
+        run: cp issue-categories.json allure-results/
 
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: regression-allure-${{ matrix.shardIndex }}
+          path: allure-results/
+      
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -281,6 +311,7 @@ jobs:
       # ------------------------------------------
       - name: Build Allure Report
         uses: simple-elf/allure-report-action@master
+        if: always()
         with:
           allure_results: all-results
           gh_pages: gh-pages
