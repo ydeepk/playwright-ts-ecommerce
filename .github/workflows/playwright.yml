@@ -81,7 +81,7 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: regression-allure-${{ matrix.shardIndex }}
+          name: regression-allure-smoke-${{ matrix.shardIndex }}
           path: allure-results/
 
       - name: Validate Allure Results Before Upload
@@ -155,7 +155,7 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: regression-allure-${{ matrix.shardIndex }}
+          name: regression-allure-regression-${{ matrix.shardIndex }}
           path: allure-results/
 
       - name: Validate Allure Results Before Upload
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: regression-allure-${{ matrix.shardIndex }}
+          name: regression-allure-nightly-${{ matrix.shardIndex }}
           path: allure-results/
       
       - name: Validate Allure Results Before Upload
