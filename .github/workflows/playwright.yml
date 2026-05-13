@@ -453,6 +453,9 @@ jobs:
           publish_branch: gh-pages
           publish_dir: allure-history
           keep_files: true
+          force_orphan: true 
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
 
 # ==========================================
 # RESULT ANALYSIS + EMAIL NOTIFICATION
@@ -460,7 +463,7 @@ jobs:
   analyze-results:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: merge-report
+    needs: [merge-report]
     if: always()
 
     steps:
