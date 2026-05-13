@@ -525,6 +525,18 @@ jobs:
             echo "color=#dc3545" >> $GITHUB_OUTPUT
           fi
 
+      - name: Prepare HTML Email Template
+        run: |
+          # Use 'sed' to replace placeholders with actual output values
+          # We create a new file called 'formatted_email.html'
+          sed -i "s/\${STATUS}/${{ steps.analysis.outputs.status }}/g" email_template.html
+          sed -i "s/\${TOTAL}/${{ steps.analysis.outputs.total }}/g" email_template.html
+          sed -i "s/\${PASSED}/${{ steps.analysis.outputs.passed }}/g" email_template.html
+          sed -i "s/\${FAILED}/${{ steps.analysis.outputs.failed }}/g" email_template.html
+          sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" email_template.html
+          sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" email_template.html
+          # Add more 'sed' lines for DELTA, BRANCH_NAME, etc.
+          
       - name: Send Stakeholder Email
         # Email notifications skipped for PRs to avoid noise
         if: github.event_name != 'pull_request'
@@ -541,97 +553,4 @@ jobs:
           from: Playwright Automation Team
 
           # HTML email template for stakeholder-friendly reporting
-          html_body: |
-            <!-- Structured, readable summary for non-technical stakeholders -->
-            <!-- Includes metrics, environment, and report link -->
-
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 0; }
-            .container { max-width: 650px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
-            .header { padding: 25px; text-align: center; color: white; }
-            .status-passed { background-color: #28a745; }
-            .status-failed { background-color: #dc3545; }
-            .content { padding: 30px; }
-            .metrics-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            .metrics-table th, .metrics-table td { padding: 12px; border: 1px solid #eee; text-align: left; }
-            .metrics-table th { background-color: #f8f9fa; color: #666; font-size: 12px; text-transform: uppercase; }
-            .delta { font-size: 12px; font-weight: bold; }
-            .delta-up { color: #dc3545; } /* Red for increasing failures */
-            .delta-down { color: #28a745; }
-            .cta-button { display: inline-block; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
-            .footer { background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 11px; color: #999; }
-            </style>
-            </head>
-            <body>
-            <div class="container">
-            <div class="header ${STATUS_CLASS}">
-            <h1 style="margin:0;">Automation Report: ${STATUS}</h1>
-            <p style="margin:5px 0 0 0; opacity: 0.9;">Project: Playwright E-Commerce | Suite: ${TRIGGER_EVENT}</p>
-            </div>
-
-            <div class="content">
-            <table style="width: 100%; margin-bottom: 20px;">
-                <tr>
-                    <td><strong>Environment:</strong> QA-Staging</td>
-                    <td style="text-align: right;"><strong>Date:</strong> ${TIMESTAMP}</td>
-                </tr>
-                <tr>
-                    <td><strong>Branch:</strong> ${BRANCH_NAME}</td>
-                    <td style="text-align: right;"><strong>Duration:</strong> ${TOTAL_DURATION}</td>
-                </tr>
-            </table>
-
-            <h3>📊 Test Performance Metrics</h3>
-            <table class="metrics-table">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>Current</th>
-                        <th>Previous</th>
-                        <th>Trend (Δ)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Total Tests</td>
-                        <td><strong>${TOTAL}</strong></td>
-                        <td>${PREV_TOTAL}</td>
-                        <td>--</td>
-                    </tr>
-                    <tr>
-                        <td>Passed</td>
-                        <td style="color: #28a745; font-weight: bold;">${PASSED}</td>
-                        <td>${PREV_PASSED}</td>
-                        <td><span class="delta ${DELTA_P_CLASS}">${DELTA_PASSED}</span></td>
-                    </tr>
-                    <tr>
-                        <td>Failed</td>
-                        <td style="color: #dc3545; font-weight: bold;">${FAILED}</td>
-                        <td>${PREV_FAILED}</td>
-                        <td><span class="delta ${DELTA_F_CLASS}">${DELTA_FAILED}</span></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h3>🔍 Top Failures (Immediate Attention)</h3>
-            <ul style="padding-left: 20px; color: #555;">
-                <li><strong>PIM Lifecycle:</strong> Timeout of 30000ms (Chromium/Firefox)</li>
-                <li><strong>Checkout Flow:</strong> Element not interactable (Webkit)</li>
-            </ul>
-
-            <div style="text-align: center; margin-top: 40px;">
-                <p style="font-size: 14px; color: #666;">For full traces, videos, and environment logs, visit the dashboard:</p>
-                <a href="${ALLURE_URL}" class="cta-button">View Live Allure Report</a>
-            </div>
-            </div>
-
-            <div class="footer">
-            Generated by GitHub Actions Pipeline # ${RUN_ID} <br>
-            © 2026 Quality Engineering Team
-            </div>
-            </div>
-            </body>
-            </html>
+          html_body: file://email_template.html
