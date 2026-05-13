@@ -262,6 +262,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history
+          force_orphan: true
 
 # ==========================================
 # NIGHTLY FULL SUITE
