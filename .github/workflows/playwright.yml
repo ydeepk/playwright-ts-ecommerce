@@ -28,6 +28,11 @@ concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
 
 # ==========================================
@@ -68,6 +73,9 @@ jobs:
       # Installs required browsers and OS dependencies
       - run: npx playwright install --with-deps
 
+      - name: Clean Allure Results
+        run: rm -rf allure-results && mkdir allure-results
+
       - name: Run Smoke Tests
         run: |
           npx playwright test --retries=1 \
@@ -105,7 +113,38 @@ jobs:
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 7
+          retention-days: 7   
+          
+  generate-smoke-report:
+    needs: [smoke-tests] # Replace with your actual smoke job name
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+    # 1. Pull the Smoke results specifically
+      - name: Download Smoke shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: smoke-allure-*
+          path: smoke-results
+          merge-multiple: true
+
+    # 2. Pull Smoke History (Crucial for the Trend)
+      - name: Get Smoke History
+        continue-on-error: true
+        run: |
+          # Adjust the path to where your smoke history is stored on gh-pages
+          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/smoke/history.tar.gz || true
+          tar -xvf history.tar.gz -C smoke-results || true
+
+    # 3. Build & Deploy
+      - name: Build Smoke Report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: smoke-results
+          allure_history: allure-history
+          subfolder: smoke # This keeps it separate from regression
 
 # ==========================================
 # REGRESSION TESTS (PUSH VALIDATION)
@@ -139,6 +178,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - run: npx playwright install --with-deps
+
+      - name: Clean Allure Results
+        run: rm -rf allure-results && mkdir allure-results
 
       - name: Run Regression Tests
         run: |
@@ -181,6 +223,46 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  generate-report:
+    needs: [regression-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Download ALL shard results
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: regression-allure-*
+          path: all-results
+          merge-multiple: true
+
+      # 2. Get history from the previous deployment
+      - name: Get Allure history
+        continue-on-error: true
+        run: |
+          # Use curl to pull history from your live GitHub Pages site
+          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/history.tar.gz || true
+          tar -xvf history.tar.gz -C all-results || true
+
+      # 3. Build the report with history
+      - name: Build Allure Report
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: all-results
+          allure_history: allure-history
+          keep_reports: 20
+
+      # 4. Deploy to GitHub Pages
+      - name: Deploy report to Github Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: allure-history
+
 # ==========================================
 # NIGHTLY FULL SUITE
 # ==========================================
@@ -213,6 +295,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - run: npx playwright install --with-deps
+
+      - name: Clean Allure Results
+        run: rm -rf allure-results && mkdir allure-results
 
       - name: Run Full Suite
         run: |
@@ -251,6 +336,39 @@ jobs:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
           path: playwright-report/
           retention-days: 7
+    
+  generate-nightly-report:
+    needs: [nightly-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Collect results from all nightly shards
+      - name: Download Nightly results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nightly-allure-*
+          path: nightly-results
+          merge-multiple: true
+
+      # 2. Extract previous history from the 'nightly' subfolder
+      - name: Get Nightly History
+        continue-on-error: true
+        run: |
+          # Fetching from your specific nightly path
+          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/nightly/history.tar.gz || true
+          tar -xvf history.tar.gz -C nightly-results || true
+
+      # 3. Build with the 'nightly' subfolder specified
+      - name: Build Nightly Allure Report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: nightly-results
+          allure_history: allure-history
+          subfolder: nightly 
+          keep_reports: 30 # Nightly history is usually kept longer for RCA
+
 
 # ==========================================
 # ALLURE MERGE + REPORT DEPLOYMENT
