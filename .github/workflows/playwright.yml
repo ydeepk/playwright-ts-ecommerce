@@ -544,73 +544,91 @@ jobs:
 
             <!DOCTYPE html>
             <html>
-            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6;">
-              <div style="max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                
-                <h2 style="color: ${{ steps.analysis.outputs.color }}; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-                  Test Execution Summary: ${{ steps.analysis.outputs.status }}
-                </h2>
+            <head>
+            <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 0; }
+            .container { max-width: 650px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+            .header { padding: 25px; text-align: center; color: white; }
+            .status-passed { background-color: #28a745; }
+            .status-failed { background-color: #dc3545; }
+            .content { padding: 30px; }
+            .metrics-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .metrics-table th, .metrics-table td { padding: 12px; border: 1px solid #eee; text-align: left; }
+            .metrics-table th { background-color: #f8f9fa; color: #666; font-size: 12px; text-transform: uppercase; }
+            .delta { font-size: 12px; font-weight: bold; }
+            .delta-up { color: #dc3545; } /* Red for increasing failures */
+            .delta-down { color: #28a745; }
+            .cta-button { display: inline-block; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+            .footer { background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 11px; color: #999; }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+            <div class="header ${STATUS_CLASS}">
+            <h1 style="margin:0;">Automation Report: ${STATUS}</h1>
+            <p style="margin:5px 0 0 0; opacity: 0.9;">Project: Playwright E-Commerce | Suite: ${TRIGGER_EVENT}</p>
+            </div>
 
-                <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Environment:</td>
-                    <td style="padding: 8px;">QA / Staging</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Trigger:</td>
-                    <td style="padding: 8px;">${{ github.event_name }}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Repository:</td>
-                    <td style="padding: 8px;">${{ github.event.repository.name }}</td>
-                  </tr>
-                </table>
+            <div class="content">
+            <table style="width: 100%; margin-bottom: 20px;">
+                <tr>
+                    <td><strong>Environment:</strong> QA-Staging</td>
+                    <td style="text-align: right;"><strong>Date:</strong> ${TIMESTAMP}</td>
+                </tr>
+                <tr>
+                    <td><strong>Branch:</strong> ${BRANCH_NAME}</td>
+                    <td style="text-align: right;"><strong>Duration:</strong> ${TOTAL_DURATION}</td>
+                </tr>
+            </table>
 
-                <h3 style="margin-top: 30px; color: #444;">Execution Metrics</h3>
-                <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #f9f9f9;">
-                  <thead>
-                    <tr style="background-color: #eee;">
-                      <th style="padding: 12px; border: 1px solid #ddd;">Metric</th>
-                      <th style="padding: 12px; border: 1px solid #ddd;">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+            <h3>📊 Test Performance Metrics</h3>
+            <table class="metrics-table">
+                <thead>
                     <tr>
-                      <td style="padding: 12px; border: 1px solid #ddd;">Total Tests</td>
-                      <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${{ steps.analysis.outputs.total }}</td>
+                        <th>Metric</th>
+                        <th>Current</th>
+                        <th>Previous</th>
+                        <th>Trend (Δ)</th>
                     </tr>
-                    <tr style="color: #28a745;">
-                      <td style="padding: 12px; border: 1px solid #ddd;">Passed</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.passed }}</td>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total Tests</td>
+                        <td><strong>${TOTAL}</strong></td>
+                        <td>${PREV_TOTAL}</td>
+                        <td>--</td>
                     </tr>
-                    <tr style="color: #dc3545; font-weight: ${{ steps.analysis.outputs.failed > 0 && 'bold' || 'normal' }};">
-                      <td style="padding: 12px; border: 1px solid #ddd;">Failed</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.failed }}</td>
+                    <tr>
+                        <td>Passed</td>
+                        <td style="color: #28a745; font-weight: bold;">${PASSED}</td>
+                        <td>${PREV_PASSED}</td>
+                        <td><span class="delta ${DELTA_P_CLASS}">${DELTA_PASSED}</span></td>
                     </tr>
-                    <tr style="color: #ffc107;">
-                      <td style="padding: 12px; border: 1px solid #ddd;">Skipped</td>
-                      <td style="padding: 12px; border: 1px solid #ddd;">${{ steps.analysis.outputs.skipped }}</td>
+                    <tr>
+                        <td>Failed</td>
+                        <td style="color: #dc3545; font-weight: bold;">${FAILED}</td>
+                        <td>${PREV_FAILED}</td>
+                        <td><span class="delta ${DELTA_F_CLASS}">${DELTA_FAILED}</span></td>
                     </tr>
-                  </tbody>
-                </table>
+                </tbody>
+            </table>
 
-                <div style="margin-top: 30px; text-align: center;">
-                  <p style="font-size: 14px; color: #666;">
-                    Detailed logs, screenshots, and videos are available in the report:
-                  </p>
+            <h3>🔍 Top Failures (Immediate Attention)</h3>
+            <ul style="padding-left: 20px; color: #555;">
+                <li><strong>PIM Lifecycle:</strong> Timeout of 30000ms (Chromium/Firefox)</li>
+                <li><strong>Checkout Flow:</strong> Element not interactable (Webkit)</li>
+            </ul>
 
-                  <a href="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/allure-results/" 
-                     style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                    Open Allure Dashboard
-                  </a>
-                </div>
+            <div style="text-align: center; margin-top: 40px;">
+                <p style="font-size: 14px; color: #666;">For full traces, videos, and environment logs, visit the dashboard:</p>
+                <a href="${ALLURE_URL}" class="cta-button">View Live Allure Report</a>
+            </div>
+            </div>
 
-                <hr style="margin-top: 40px; border: 0; border-top: 1px solid #eee;" />
-
-                <p style="font-size: 11px; color: #999; text-align: center;">
-                  This is an automated report generated by the Playwright CI Pipeline.
-                </p>
-
-              </div>
+            <div class="footer">
+            Generated by GitHub Actions Pipeline # ${RUN_ID} <br>
+            © 2026 Quality Engineering Team
+            </div>
+            </div>
             </body>
             </html>
