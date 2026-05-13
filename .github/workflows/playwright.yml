@@ -459,17 +459,18 @@ jobs:
 # ==========================================
   analyze-results:
     runs-on: ubuntu-latest
-
     timeout-minutes: 15
-
-    # Runs after report generation
     needs: merge-report
     if: always()
 
     steps:
-      - uses: actions/download-artifact@v5
+      # CRITICAL: This downloads your repo (including email_template.html) 
+      # so the 'sed' command has a file to work with.
+      - uses: actions/checkout@v4
+
+      - name: Aggregate JSON Metrics
+        uses: actions/download-artifact@v5
         with:
-          # Collect all Playwright JSON reports for aggregation
           pattern: "playwright-report-*"
           path: reports
           merge-multiple: true
@@ -477,68 +478,40 @@ jobs:
       - name: Extract Detailed Metrics
         id: analysis
         run: |
-          TOTAL=0
-          PASSED=0
-          FAILED=0
-          SKIPPED=0
-          
+          TOTAL=0; PASSED=0; FAILED=0; SKIPPED=0
           FILES=$(find reports -name "report.json")
+          if [ -z "$FILES" ]; then echo "No reports found"; exit 1; fi
 
-          if [ -z "$FILES" ]; then
-            echo "JSON report not found - reporter misconfiguration or artifact issue"
-            exit 1
-          fi
-
-          # Aggregates stats across all shards and jobs
-          if [ -n "$FILES" ]; then
-            for file in $FILES; do
-              T=$(jq '.stats.expected + .stats.unexpected + .stats.skipped' "$file" || echo 0)
-              F=$(jq '.stats.unexpected' "$file" || echo 0)
-              S=$(jq '.stats.skipped' "$file" || echo 0)
-              P=$((T - F - S))
-              
-              TOTAL=$((TOTAL + T))
-              PASSED=$((PASSED + P))
-              FAILED=$((FAILED + F))
-              SKIPPED=$((SKIPPED + S))
-            done
-          fi
-
-          # Fail fast if no valid test results found
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "No test results found - possible JSON reporter misconfiguration"
-            exit 1
-          fi
+          for file in $FILES; do
+            T=$(jq '.stats.expected + .stats.unexpected + .stats.skipped' "$file" || echo 0)
+            F=$(jq '.stats.unexpected' "$file" || echo 0)
+            S=$(jq '.stats.skipped' "$file" || echo 0)
+            TOTAL=$((TOTAL + T)); FAILED=$((FAILED + F)); SKIPPED=$((SKIPPED + S))
+          done
+          PASSED=$((TOTAL - FAILED - SKIPPED))
           
-          # Expose computed values to subsequent steps
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
-          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
-          
-          # Determines overall execution status
-          if [ "$FAILED" -eq 0 ] && [ "$TOTAL" -gt 0 ]; then
-            echo "status=PASSED" >> $GITHUB_OUTPUT
-            echo "color=#28a745" >> $GITHUB_OUTPUT
-          else
-            echo "status=FAILED" >> $GITHUB_OUTPUT
-            echo "color=#dc3545" >> $GITHUB_OUTPUT
-          fi
+          echo "status=$([[ $FAILED -eq 0 ]] && echo 'PASSED' || echo 'FAILED')" >> $GITHUB_OUTPUT
 
       - name: Prepare HTML Email Template
         run: |
-          # Use 'sed' to replace placeholders with actual output values
-          # We create a new file called 'formatted_email.html'
+          # Professional Tip: Check if file exists first to avoid silent failures
+          if [ ! -f "email_template.html" ]; then
+            echo "Error: email_template.html not found in root of repo!"
+            exit 1
+          fi
+
+          # Replace placeholders with real values
           sed -i "s/\${STATUS}/${{ steps.analysis.outputs.status }}/g" email_template.html
           sed -i "s/\${TOTAL}/${{ steps.analysis.outputs.total }}/g" email_template.html
           sed -i "s/\${PASSED}/${{ steps.analysis.outputs.passed }}/g" email_template.html
           sed -i "s/\${FAILED}/${{ steps.analysis.outputs.failed }}/g" email_template.html
           sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" email_template.html
           sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" email_template.html
-          # Add more 'sed' lines for DELTA, BRANCH_NAME, etc.
           
       - name: Send Stakeholder Email
-        # Email notifications skipped for PRs to avoid noise
         if: github.event_name != 'pull_request'
         uses: dawidd6/action-send-mail@v3
         with:
@@ -546,11 +519,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-
           subject: QA Test Execution Report | ${{ steps.analysis.outputs.status }} | ${{ github.event_name }}
-
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
-
-          # HTML email template for stakeholder-friendly reporting
           html_body: file://email_template.html
