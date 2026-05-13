@@ -28,6 +28,11 @@ concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
 
 # ==========================================
@@ -70,7 +75,7 @@ jobs:
 
       - name: Clean Allure Results
         run: rm -rf allure-results && mkdir allure-results
-        
+
       - name: Run Smoke Tests
         run: |
           npx playwright test --retries=1 \
@@ -392,7 +397,6 @@ jobs:
     permissions:
       contents: write
       pages: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v5
