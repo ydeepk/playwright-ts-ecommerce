@@ -4,7 +4,7 @@
 # - Push validation (regression)
 # - Scheduled runs (full suite)
 # - Reporting + stakeholder notification
-name: Playwright Test Pipeline (Full Optimized)
+name: Playwright Test Pipeline
 
 on:
   # Manual trigger for ad-hoc execution
@@ -19,8 +19,9 @@ on:
     branches: [ main, master ]
 
   # Nightly execution for full regression coverage
+  # Runs twice a week (Tuesday and Thursday) at 2:00 AM UTC
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * 2,4'
 
 # Prevents parallel runs on same branch from overlapping
 # Ensures resource efficiency and avoids report conflicts
