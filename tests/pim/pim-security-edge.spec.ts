@@ -8,7 +8,7 @@ import { PIMPage } from '../../pages/PIM.page';
 // Good use for security scenarios to avoid session leakage between tests
 test.use({ storageState: undefined });
 
-test.describe('PIM Security & Edge Cases', () => {
+test.describe('@edge PIM Security & Edge Cases', () => {
 
     let generatedId: string | undefined;
 

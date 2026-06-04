@@ -277,6 +277,46 @@ reporter: [
 
       dependencies: ['setup-webkit'],
     },
+    {
+      name: 'edge-chromium',
+
+      grep: /@edge\b/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright-utils/.auth/chromium-storageState.json',
+      },
+
+      dependencies: ['setup-chromium'],
+    },
+
+    {
+      name: 'edge-firefox',
+
+      // Cross-browser coverage (important for compatibility bugs)
+      grep: /@edge\b/,
+
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'playwright-utils/.auth/firefox-storageState.json',
+      },
+
+      dependencies: ['setup-firefox'],
+    },
+
+    {
+      name: 'edge-webkit',
+
+      // Safari/WebKit coverage (often catches CSS/layout issues)
+      grep: /@edge\b/,
+
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'playwright-utils/.auth/webkit-storageState.json',
+      },
+
+      dependencies: ['setup-webkit'],
+    }
 
     /**
      * ==========================
