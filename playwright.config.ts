@@ -115,7 +115,7 @@ reporter: [
     extraHTTPHeaders: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-    }
+    },
 
     /**
      * Trace collection:

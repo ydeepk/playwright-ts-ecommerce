@@ -27,7 +27,7 @@ test.describe("OrangeHRM - PIM Module REST API Validations", () => {
     empClient = new EmployeeClient(apiContext);
   });
 
-  test("TC-API-001: Should successfully provision a new employee record via POST", async () => {
+  test("Should successfully provision a new employee record via POST", async () => {
     const uniqueId = `EMP_${Date.now().toString().slice(-4)}`;
 
     const jsonResponse = await empClient.createEmployee(
