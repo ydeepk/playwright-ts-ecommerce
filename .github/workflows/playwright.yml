@@ -448,16 +448,21 @@ jobs:
       # ------------------------------------------
       - name: Deploy Report to Github Pages
         if: github.event_name != 'pull_request'
-        uses: peaceiris/actions-gh-pages@v3
+        # UPGRADED: v3 -> v4 handles newer Node versions seamlessly
+        uses: peaceiris/actions-gh-pages@v4 
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
           publish_dir: allure-history
           keep_files: true
+          
+          # CRITICAL FIX: Forces an independent commit tree, 
+          # completely bypassing the "cannot lock ref" concurrency error
           force_orphan: true 
+          
+          # Explicit bot configurations to stabilize access tokens
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-
+          
 # ==========================================
 # RESULT ANALYSIS + EMAIL NOTIFICATION
 # ==========================================

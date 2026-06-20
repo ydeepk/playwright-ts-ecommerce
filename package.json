@@ -19,7 +19,7 @@
     "qa-testing"
   ],
   "author": "Deepak Yadav <ydeepkcs@gmail.com>",
-  "license": "ISC",
+  "license": "GNU GENERAL PUBLIC LICENSE v3",
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
