@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { EmployeeClient } from "../../src/api/EmployeeClient";
+import { EmployeeClient } from "../../api/EmployeeClient";
 
 test.describe("OrangeHRM - PIM Module REST API Validations", () => {
   let empClient: EmployeeClient;
