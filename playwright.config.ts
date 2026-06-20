@@ -111,6 +111,12 @@ reporter: [
      */
     baseURL: process.env.BASE_URL || 'https://opensource-demo.orangehrmlive.com/',
 
+    // Sets standard headers globally for all api/request contexts
+    extraHTTPHeaders: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }
+
     /**
      * Trace collection:
      * - Captured only on retry → balances debugging vs storage cost
