@@ -12,16 +12,16 @@ on:
 
   # Run smoke tests on PRs targeting main branches
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
   # Run regression suite on code push to main branches
   push:
-    branches: [ main, master ]
+    branches: [main, master]
 
   # Nightly execution for full regression coverage
   # Runs twice a week (Tuesday and Thursday) at 2:00 AM UTC
   schedule:
-    - cron: '0 2 * * 2,4'
+    - cron: "0 2 * * 2,4"
 
 # Prevents parallel runs on same branch from overlapping
 # Ensures resource efficiency and avoids report conflicts
@@ -35,10 +35,9 @@ permissions:
   id-token: write
 
 jobs:
-
-# ==========================================
-# SMOKE TESTS (PR VALIDATION)
-# ==========================================
+  # ==========================================
+  # SMOKE TESTS (PR VALIDATION)
+  # ==========================================
   smoke-tests:
     # Executes only for pull request events
     if: github.event_name == 'pull_request'
@@ -59,8 +58,8 @@ jobs:
       # Sets Node.js runtime and enables npm caching
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       # Clean install ensures deterministic dependency resolution
       - run: npm ci
@@ -82,7 +81,7 @@ jobs:
           npx playwright test --retries=1 \
           --project=smoke-chromium \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-      
+
       - name: Copy Allure Categories
         if: always()
         run: cp issue-categories.json allure-results/
@@ -99,7 +98,7 @@ jobs:
             echo "Allure results missing - failing job"
             exit 1
           fi
-          
+
       # Upload Allure raw results for later aggregation
       - uses: actions/upload-artifact@v5
         if: always()
@@ -114,8 +113,8 @@ jobs:
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 7   
-          
+          retention-days: 7
+
   generate-smoke-report:
     needs: [smoke-tests] # Replace with your actual smoke job name
     if: always()
@@ -123,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-    # 1. Pull the Smoke results specifically
+      # 1. Pull the Smoke results specifically
       - name: Download Smoke shard results
         uses: actions/download-artifact@v4
         with:
@@ -131,7 +130,7 @@ jobs:
           path: smoke-results
           merge-multiple: true
 
-    # 2. Pull Smoke History (Crucial for the Trend)
+      # 2. Pull Smoke History (Crucial for the Trend)
       - name: Get Smoke History
         continue-on-error: true
         run: |
@@ -139,7 +138,7 @@ jobs:
           curl -O https://ydeepk.github.io/playwright-ts-ecommerce/smoke/history.tar.gz || true
           tar -xvf history.tar.gz -C smoke-results || true
 
-    # 3. Build & Deploy
+      # 3. Build & Deploy
       - name: Build Smoke Report
         uses: simple-elf/allure-report-action@master
         with:
@@ -147,9 +146,9 @@ jobs:
           allure_history: allure-history
           subfolder: smoke # This keeps it separate from regression
 
-# ==========================================
-# REGRESSION TESTS (PUSH VALIDATION)
-# ==========================================
+  # ==========================================
+  # REGRESSION TESTS (PUSH VALIDATION)
+  # ==========================================
   regression-tests:
     # Executes on direct pushes to main branches
     if: github.event_name == 'push'
@@ -168,8 +167,8 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - run: npm ci
 
@@ -264,12 +263,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history
           force_orphan: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
 
-# ==========================================
-# NIGHTLY FULL SUITE
-# ==========================================
+  # ==========================================
+  # NIGHTLY FULL SUITE
+  # ==========================================
   nightly-tests:
     # Executes on scheduled cron trigger only
     if: github.event_name == 'schedule'
@@ -288,8 +287,8 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - run: npm ci
 
@@ -307,7 +306,7 @@ jobs:
         run: |
           npx playwright test --retries=1 \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-      
+
       - name: Copy Allure Categories
         if: always()
         run: cp issue-categories.json allure-results/
@@ -317,7 +316,7 @@ jobs:
         with:
           name: regression-allure-nightly-${{ matrix.shardIndex }}
           path: allure-results/
-      
+
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -340,7 +339,7 @@ jobs:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
           path: playwright-report/
           retention-days: 7
-    
+
   generate-nightly-report:
     needs: [nightly-tests]
     if: always()
@@ -370,13 +369,12 @@ jobs:
         with:
           allure_results: nightly-results
           allure_history: allure-history
-          subfolder: nightly 
+          subfolder: nightly
           keep_reports: 30 # Nightly history is usually kept longer for RCA
 
-
-# ==========================================
-# ALLURE MERGE + REPORT DEPLOYMENT
-# ==========================================
+  # ==========================================
+  # ALLURE MERGE + REPORT DEPLOYMENT
+  # ==========================================
   merge-report:
     runs-on: ubuntu-latest
 
@@ -449,23 +447,23 @@ jobs:
       - name: Deploy Report to Github Pages
         if: github.event_name != 'pull_request'
         # UPGRADED: v3 -> v4 handles newer Node versions seamlessly
-        uses: peaceiris/actions-gh-pages@v4 
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history
           keep_files: true
-          
-          # CRITICAL FIX: Forces an independent commit tree, 
+
+          # CRITICAL FIX: Forces an independent commit tree,
           # completely bypassing the "cannot lock ref" concurrency error
-          force_orphan: true 
-          
+          force_orphan: true
+
           # Explicit bot configurations to stabilize access tokens
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          
-# ==========================================
-# RESULT ANALYSIS + EMAIL NOTIFICATION
-# ==========================================
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+
+  # ==========================================
+  # RESULT ANALYSIS + EMAIL NOTIFICATION
+  # ==========================================
   analyze-results:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -473,7 +471,7 @@ jobs:
     if: always()
 
     steps:
-      # CRITICAL: This downloads your repo (including email_template.html) 
+      # CRITICAL: This downloads your repo (including email_template.html)
       # so the 'sed' command has a file to work with.
       - uses: actions/checkout@v4
 
@@ -498,11 +496,40 @@ jobs:
             TOTAL=$((TOTAL + T)); FAILED=$((FAILED + F)); SKIPPED=$((SKIPPED + S))
           done
           PASSED=$((TOTAL - FAILED - SKIPPED))
-          
+
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "status=$([[ $FAILED -eq 0 ]] && echo 'PASSED' || echo 'FAILED')" >> $GITHUB_OUTPUT
+
+      # ==========================================
+      # Capture allure history for trends
+      # ==========================================
+      - name: Get Allure history
+        uses: actions/checkout@v4
+        if: always()
+        with:
+          ref: gh-pages
+          path: gh-pages-dir
+
+      - name: Copy History Trend to Results
+        if: always()
+        run: |
+          mkdir -p allure-results
+          if [ -d "gh-pages-dir/history" ]; then
+            cp -r gh-pages-dir/history allure-results/
+          fi
+
+      - name: Generate Allure Report
+        if: always()
+        run: npx allure generate allure-results --clean
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
 
       - name: Prepare HTML Email Template
         run: |
@@ -519,7 +546,7 @@ jobs:
           sed -i "s/\${FAILED}/${{ steps.analysis.outputs.failed }}/g" email_template.html
           sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" email_template.html
           sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" email_template.html
-          
+
       - name: Send Stakeholder Email
         if: github.event_name != 'pull_request'
         uses: dawidd6/action-send-mail@v3
@@ -528,7 +555,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: QA Test Execution Report | ${{ steps.analysis.outputs.status }} | ${{ github.event_name }}
+          subject: "[Automation Report] Playwright E-Commerce Engine - Build #${{ github.run_id }} - Status: ${{ steps.analysis.outputs.status }}"
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
           html_body: file://email_template.html
