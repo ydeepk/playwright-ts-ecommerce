@@ -1,80 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Automation Execution Summary</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #333333; line-height: 1.5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #e1e4e8; border-radius: 6px; overflow: hidden; }
+        .banner { padding: 20px; text-align: center; color: #ffffff; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        /* Fallbacks if sed mapping introduces issues */
+        .banner.FAILED, .banner.failed { background-color: #dc3545; }
+        .banner.PASSED, .banner.passed { background-color: #28a745; }
+        .content { padding: 24px; background-color: #ffffff; }
+        .project-title { font-size: 18px; font-weight: 600; margin-top: 0; margin-bottom: 4px; color: #1f2328; }
+        .project-env { font-size: 14px; color: #57606a; margin-bottom: 20px; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }
+        .meta-table td { padding: 6px 0; vertical-align: top; }
+        .meta-label { color: #57606a; width: 35%; font-weight: 500; }
+        .meta-value { color: #1f2328; width: 65%; }
+        .btn-container { text-align: center; margin: 28px 0 10px 0; }
+        .btn { background-color: #0969da; color: #ffffff !important; text-decoration: none; padding: 12px 24px; font-size: 14px; font-weight: 600; border-radius: 6px; display: inline-block; }
+    </style>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333333; line-height: 1.6; margin: 0; padding: 0; background-color: #f9f9f9;">
+<body>
 
-  <div style="max-width: 650px; margin: 20px auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+<div class="container">
+    <!-- The class dynamically becomes "banner PASSED" or "banner FAILED" matching your CSS -->
+    <div class="banner ${STATUS}">
+        Automation Run: ${STATUS}
+    </div>
     
-    <div style="background-color: ${STATUS_COLOR}; padding: 30px 20px; text-align: center; color: #ffffff;">
-      <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">
-        Automation Suite: ${STATUS}
-      </h1>
-      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9; font-weight: 500;">
-        Project: Playwright E-Commerce Engine
-      </p>
-    </div>
+    <div class="content">
+        <div class="project-title">Playwright E-Commerce Engine</div>
+        <div class="project-env">Environment: <strong>QA / Staging</strong></div>
+        
+        <table class="meta-table">
+            <tr>
+                <td class="meta-label">Executed At</td>
+                <td class="meta-value">${TIMESTAMP}</td>
+            </tr>
+            <tr>
+                <td class="meta-label">CI Run ID</td>
+                <td class="meta-value"><code>${RUN_ID}</code></td>
+            </tr>
+            <tr>
+                <td class="meta-label">Total Cases</td>
+                <td class="meta-value">${TOTAL}</td>
+            </tr>
+            <tr>
+                <td class="meta-label">Passed</td>
+                <td class="meta-value" style="color: #28a745; font-weight: bold;">${PASSED}</td>
+            </tr>
+            <tr>
+                <td class="meta-label">Failed / Timeouts</td>
+                <td class="meta-value" style="color: #dc3545; font-weight: bold;">${FAILED}</td>
+            </tr>
+        </table>
 
-    <div style="padding: 25px 30px 15px 30px;">
-      <table style="width: 100%; font-size: 13px; color: #666666; border-collapse: collapse;">
-        <tr>
-          <td style="padding-bottom: 8px;"><strong>Environment:</strong> QA / Staging</td>
-          <td style="text-align: right; padding-bottom: 8px;"><strong>Executed At:</strong> ${TIMESTAMP}</td>
-        </tr>
-        <tr>
-          <td><strong>Trigger Event:</strong> ${TRIGGER_EVENT}</td>
-          <td style="text-align: right;"><strong>Branch / Ref:</strong> <code style="background: #f1f1f1; padding: 2px 6px; border-radius: 4px;">${BRANCH_NAME}</code></td>
-        </tr>
-      </table>
-      <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 15px;" />
+        <div class="btn-container">
+            <a href="https://ydeepk.github.io/playwright-ts-ecommerce/" class="btn" target="_blank">Open Interactive Allure Dashboard</a>
+        </div>
     </div>
-
-    <div style="padding: 0 30px 20px 30px;">
-      <h3 style="color: #444444; font-size: 16px; margin-top: 10px; margin-bottom: 15px;">📊 Execution Metrics Dashboard</h3>
-      
-      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
-        <thead>
-          <tr style="background-color: #f8f9fa; border-bottom: 2px solid #eeeeee;">
-            <th style="padding: 12px 10px; color: #555555; font-weight: 600;">Metric Target</th>
-            <th style="padding: 12px 10px; color: #555555; font-weight: 600; text-align: center;">Test Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="border-bottom: 1px solid #eeeeee;">
-            <td style="padding: 12px 10px; font-weight: 600; color: #333333;">Total Executed Case Load</td>
-            <td style="padding: 12px 10px; text-align: center; font-weight: 700; font-size: 15px;">${TOTAL}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #eeeeee; color: #28a745;">
-            <td style="padding: 12px 10px;">Passed Components</td>
-            <td style="padding: 12px 10px; text-align: center; font-weight: 600;">${PASSED}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #eeeeee; color: #dc3545;">
-            <td style="padding: 12px 10px;">Failed Assertions / Timeouts</td>
-            <td style="padding: 12px 10px; text-align: center; font-weight: 700;">${FAILED}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div style="padding: 10px 30px 35px 30px; text-align: center;">
-      <p style="font-size: 13px; color: #666666; margin-bottom: 20px;">
-        Detailed stack traces, steps, failures, and attached network traces/videos are hosted securely on the reporting framework:
-      </p>
-      <a href="https://ydeepk.github.io/playwright-ts-ecommerce/" 
-         style="background-color: #007bff; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(0,123,255,0.2);">
-        Open Interactive Allure Dashboard
-      </a>
-    </div>
-
-    <div style="background-color: #f4f4f4; padding: 15px 30px; text-align: center; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee;">
-      Automated Engineering Dispatch • Run Instance ID: #${RUN_ID} <br>
-      © 2026 Quality Engineering Assurance Core
-    </div>
-
-  </div>
+</div>
 
 </body>
 </html>
