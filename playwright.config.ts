@@ -1,9 +1,9 @@
 // Import Playwright test runner utilities and built-in device presets
-import { chromium, defineConfig, devices } from '@playwright/test';
+import { chromium, defineConfig, devices } from "@playwright/test";
 
 // Load environment variables from .env into process.env
 // NOTE: Ensure `.env` is excluded from version control (.gitignore)
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 dotenv.config();
 
 /**
@@ -19,9 +19,8 @@ dotenv.config();
  * Avoid putting secrets directly in config. Use env validation where possible.
  */
 export default defineConfig({
-
   // Root directory containing all test specs
-  testDir: './tests',
+  testDir: "./tests",
 
   /**
    * Disable full parallel execution within a single test file.
@@ -66,42 +65,44 @@ export default defineConfig({
    * - HTML: built-in Playwright report (quick debugging)
    * - Allure: advanced reporting (history, trends, CI integration)
    */
-reporter: [
-  // HTML report for debugging (opens locally or via artifact)
-  ['html', { outputFolder: 'playwright-report', open: 'never' }],
+  reporter: [
+    // HTML report for debugging (opens locally or via artifact)
+    ["html", { outputFolder: "playwright-report", open: "never" }],
 
-  // JSON report REQUIRED for pipeline metrics aggregation
-  ['json', { outputFile: 'playwright-report/report.json' }],
+    // JSON report REQUIRED for pipeline metrics aggregation
+    ["json", { outputFile: "playwright-report/report.json" }],
 
-  // Allure report integration (for rich reporting + history)
-  ['allure-playwright', {
-    resultsDir: 'allure-results',
+    // Allure report integration (for rich reporting + history)
+    [
+      "allure-playwright",
+      {
+        resultsDir: "allure-results",
 
-    // Enables step-level reporting (good for debugging)
-    detail: true,
+        // Enables step-level reporting (good for debugging)
+        detail: true,
 
-    // Keep consistent with pipeline artifact path
-    outputFolder: 'allure-results',
+        // Keep consistent with pipeline artifact path
+        outputFolder: "allure-results",
 
-    // Avoid duplicate suite names in Allure UI
-    suiteTitle: false,
+        // Avoid duplicate suite names in Allure UI
+        suiteTitle: false,
 
-    // Execution metadata visible in Allure dashboard
-    environmentInfo: {
-      OS: process.platform,
-      NodeVersion: process.version,
+        // Execution metadata visible in Allure dashboard
+        environmentInfo: {
+          OS: process.platform,
+          NodeVersion: process.version,
 
-      // Better: inject via env (CI/CD flexibility)
-      Environment: process.env.TEST_ENV || 'QA-Staging'
-    }
-  }]
-],
+          // Better: inject via env (CI/CD flexibility)
+          Environment: process.env.TEST_ENV || "QA-Staging",
+        },
+      },
+    ],
+  ],
 
   /**
    * Shared settings applied to all projects
    */
   use: {
-
     /**
      * Base URL for tests
      *
@@ -109,32 +110,27 @@ reporter: [
      * - Always override via ENV in CI/CD
      * - Avoid hardcoding environment-specific URLs
      */
-    baseURL: process.env.BASE_URL || 'https://opensource-demo.orangehrmlive.com/',
-
-    // Sets standard headers globally for all api/request contexts
-    extraHTTPHeaders: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
+    baseURL:
+      process.env.BASE_URL || "https://opensource-demo.orangehrmlive.com/",
 
     /**
      * Trace collection:
      * - Captured only on retry → balances debugging vs storage cost
      */
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
 
     /**
      * Screenshot strategy:
      * - Captured only on failure → reduces noise
      */
-    screenshot: 'only-on-failure',
+    screenshot: "only-on-failure",
 
     /**
      * Video recording:
      * - Retained only for failed tests
      * - Useful for debugging flaky UI behavior
      */
-    video: 'retain-on-failure',
+    video: "retain-on-failure",
   },
 
   // ==========================
@@ -142,7 +138,6 @@ reporter: [
   // ==========================
   // Defines WHAT runs (tags) and WHERE (browser/device)
   projects: [
-
     /**
      * ==========================
      * AUTH SETUP PROJECTS
@@ -156,25 +151,25 @@ reporter: [
      */
 
     {
-      name: 'setup-chromium',
+      name: "setup-chromium",
 
       // Matches authentication setup test file
       testMatch: /auth\.setup\.ts/,
 
       // Use Chrome desktop profile
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices["Desktop Chrome"] },
     },
 
     {
-      name: 'setup-firefox',
+      name: "setup-firefox",
       testMatch: /auth\.setup\.ts/,
-      use: { ...devices['Desktop Firefox'] },
+      use: { ...devices["Desktop Firefox"] },
     },
 
     {
-      name: 'setup-webkit',
+      name: "setup-webkit",
       testMatch: /auth\.setup\.ts/,
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices["Desktop Safari"] },
     },
 
     /**
@@ -189,13 +184,13 @@ reporter: [
      * Runs without storage state
      */
     {
-      name: 'auth-chromium',
+      name: "auth-chromium",
 
       // Tag-based filtering
       grep: /@auth\b/,
 
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
 
         // Explicit empty state ensures no session leakage
         storageState: { cookies: [], origins: [] },
@@ -212,12 +207,12 @@ reporter: [
      * - Runs on every PR
      */
     {
-      name: 'smoke-chromium',
+      name: "smoke-chromium",
 
       grep: /@smoke\b/,
 
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
 
         /**
          * Reuse authenticated session
@@ -230,7 +225,7 @@ reporter: [
       },
 
       // Ensures auth setup runs first
-      dependencies: ['setup-chromium'],
+      dependencies: ["setup-chromium"],
     },
 
     /**
@@ -244,86 +239,85 @@ reporter: [
      */
 
     {
-      name: 'regression-chromium',
+      name: "regression-chromium",
 
       grep: /@regression\b/,
 
       use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'playwright-utils/.auth/chromium-storageState.json',
+        ...devices["Desktop Chrome"],
+        storageState: "playwright-utils/.auth/chromium-storageState.json",
       },
 
-      dependencies: ['setup-chromium'],
+      dependencies: ["setup-chromium"],
     },
 
     {
-      name: 'regression-firefox',
+      name: "regression-firefox",
 
       // Cross-browser coverage (important for compatibility bugs)
       grep: /@regression\b/,
 
       use: {
-        ...devices['Desktop Firefox'],
-        storageState: 'playwright-utils/.auth/firefox-storageState.json',
+        ...devices["Desktop Firefox"],
+        storageState: "playwright-utils/.auth/firefox-storageState.json",
       },
 
-      dependencies: ['setup-firefox'],
+      dependencies: ["setup-firefox"],
     },
 
     {
-      name: 'regression-webkit',
+      name: "regression-webkit",
 
       // Safari/WebKit coverage (often catches CSS/layout issues)
       grep: /@regression\b/,
 
       use: {
-        ...devices['Desktop Safari'],
-        storageState: 'playwright-utils/.auth/webkit-storageState.json',
+        ...devices["Desktop Safari"],
+        storageState: "playwright-utils/.auth/webkit-storageState.json",
       },
 
-      dependencies: ['setup-webkit'],
+      dependencies: ["setup-webkit"],
     },
     {
-      name: 'edge-chromium',
+      name: "edge-chromium",
 
       grep: /@edge\b/,
 
       use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'playwright-utils/.auth/chromium-storageState.json',
+        ...devices["Desktop Chrome"],
+        storageState: "playwright-utils/.auth/chromium-storageState.json",
       },
 
-      dependencies: ['setup-chromium'],
+      dependencies: ["setup-chromium"],
     },
 
     {
-      name: 'edge-firefox',
+      name: "edge-firefox",
 
       // Cross-browser coverage (important for compatibility bugs)
       grep: /@edge\b/,
 
       use: {
-        ...devices['Desktop Firefox'],
-        storageState: 'playwright-utils/.auth/firefox-storageState.json',
+        ...devices["Desktop Firefox"],
+        storageState: "playwright-utils/.auth/firefox-storageState.json",
       },
 
-      dependencies: ['setup-firefox'],
+      dependencies: ["setup-firefox"],
     },
 
     {
-      name: 'edge-webkit',
+      name: "edge-webkit",
 
       // Safari/WebKit coverage (often catches CSS/layout issues)
       grep: /@edge\b/,
 
       use: {
-        ...devices['Desktop Safari'],
-        storageState: 'playwright-utils/.auth/webkit-storageState.json',
+        ...devices["Desktop Safari"],
+        storageState: "playwright-utils/.auth/webkit-storageState.json",
       },
 
-      dependencies: ['setup-webkit'],
-    }
-
+      dependencies: ["setup-webkit"],
+    },
     /**
      * ==========================
      * FUTURE EXTENSIONS
@@ -344,6 +338,19 @@ reporter: [
     //   name: 'negative-tests',
     //   grep: /@negative/,
     // },
+    {
+      name: "api-only",
+      // This pattern ensures it only looks for your API spec files
+      testMatch: /.*api\.spec\.ts/,
+      use: {
+        baseURL: "https://opensource-demo.orangehrmlive.com",
+        extraHTTPHeaders: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+      // ⚡ CRITICAL: there is NO "dependencies" array here.
+      // This completely cuts out the 'setup-chromium' project.
+    },
   ],
-
 });
