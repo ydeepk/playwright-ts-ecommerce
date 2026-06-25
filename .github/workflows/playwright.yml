@@ -506,6 +506,35 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "status=$([[ $FAILED -eq 0 ]] && echo 'PASSED' || echo 'FAILED')" >> $GITHUB_OUTPUT
 
+      # ==========================================
+      # Capture allure history for trends
+      # ==========================================
+      - name: Get Allure history
+        uses: actions/checkout@v4
+        if: always()
+        with:
+          ref: gh-pages
+          path: gh-pages-dir
+
+      - name: Copy History Trend to Results
+        if: always()
+        run: |
+          mkdir -p allure-results
+          if [ -d "gh-pages-dir/history" ]; then
+            cp -r gh-pages-dir/history allure-results/
+          fi
+
+      - name: Generate Allure Report
+        if: always()
+        run: npx allure generate allure-results --clean
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+
       - name: Prepare HTML Email Template
         run: |
           # Professional Tip: Check if file exists first to avoid silent failures
