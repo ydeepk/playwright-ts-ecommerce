@@ -144,6 +144,7 @@ jobs:
         with:
           allure_results: smoke-results
           allure_history: allure-history
+          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
           subfolder: smoke # This keeps it separate from regression
 
   # ==========================================
@@ -253,6 +254,7 @@ jobs:
         with:
           allure_results: all-results
           allure_history: allure-history
+          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
           keep_reports: 20
 
       # 4. Deploy to GitHub Pages
@@ -369,6 +371,7 @@ jobs:
         with:
           allure_results: nightly-results
           allure_history: allure-history
+          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
           subfolder: nightly
           keep_reports: 30 # Nightly history is usually kept longer for RCA
 
@@ -438,6 +441,7 @@ jobs:
           subfolder: allure-results
           allure_report: allure-report
           allure_history: allure-history
+          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
           keep_reports: 30
 
       # ------------------------------------------
@@ -555,6 +559,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
+          # FIX: Formatted Subject line to explicitly match requested Stakeholder Subject Formula
           subject: "[Automation Report] Playwright E-Commerce Engine - Build #${{ github.run_id }} - Status: ${{ steps.analysis.outputs.status }}"
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team

@@ -71,6 +71,8 @@ export default defineConfig({
 
     // JSON report REQUIRED for pipeline metrics aggregation
     ["json", { outputFile: "playwright-report/report.json" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
+    ["list"],
 
     // Allure report integration (for rich reporting + history)
     [
