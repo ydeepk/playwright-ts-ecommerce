@@ -5,7 +5,7 @@ import { LoginPage } from '../../pages/Login.page';
 import { PIMPage } from '../../pages/PIM.page';
 
 // Clear storage to ensure a clean login state for security testing
-// Good use for security scenarios to avoid session leakage between tests
+// used for security scenarios to avoid session leakage between tests
 test.use({ storageState: undefined });
 
 test.describe('@edge PIM Security & Edge Cases', () => {
@@ -22,8 +22,8 @@ test.describe('@edge PIM Security & Edge Cases', () => {
 });
 
     test('Employee Self Service user should not access PIM via UI or direct URL', async ({ page, loginPage, pimPage }) => {
-        // --- Metadata ---
-        // Well-structured Allure metadata improves traceability and reporting
+    
+        // Allure metadata traceability and reporting
         await allure.label('epic', 'HR Management');
         await allure.label('feature', 'PIM Module');
         await allure.label('story', 'Unauthorized Access Protection');

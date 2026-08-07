@@ -1,6 +1,6 @@
 // Base Playwright test + assertion library
 // We extend this to inject custom fixtures (POMs)
-import { test as base, expect } from '@playwright/test';
+import { test as base } from '@playwright/test';
 
 // Page Object Models (each represents a screen or feature)
 import { LoginPage } from '../pages/Login.page';
