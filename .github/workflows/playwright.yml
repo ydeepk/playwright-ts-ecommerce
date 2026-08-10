@@ -199,7 +199,7 @@ jobs:
 
       - name: Copy Allure Categories
         if: always()
-        run: cp issue-categories.json allure-results/
+        run: cp data/issue-categories.json allure-results/
 
       - uses: actions/upload-artifact@v5
         if: always()
@@ -317,7 +317,7 @@ jobs:
 
       - name: Copy Allure Categories
         if: always()
-        run: cp issue-categories.json allure-results/
+        run: cp data/issue-categories.json allure-results/
 
       - uses: actions/upload-artifact@v5
         if: always()
