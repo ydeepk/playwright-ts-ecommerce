@@ -550,12 +550,12 @@ jobs:
           fi
 
           # Replace placeholders with real values
-          sed -i "s/\${STATUS}/${{ steps.analysis.outputs.status }}/g" email_template.html
-          sed -i "s/\${TOTAL}/${{ steps.analysis.outputs.total }}/g" email_template.html
-          sed -i "s/\${PASSED}/${{ steps.analysis.outputs.passed }}/g" email_template.html
-          sed -i "s/\${FAILED}/${{ steps.analysis.outputs.failed }}/g" email_template.html
-          sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" email_template.html
-          sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" email_template.html
+          sed -i "s/\${STATUS}/${{ steps.analysis.outputs.status }}/g" utils/reporting/email_template.html
+          sed -i "s/\${TOTAL}/${{ steps.analysis.outputs.total }}/g" utils/reporting/email_template.html
+          sed -i "s/\${PASSED}/${{ steps.analysis.outputs.passed }}/g" utils/reporting/email_template.html
+          sed -i "s/\${FAILED}/${{ steps.analysis.outputs.failed }}/g" utils/reporting/email_template.html
+          sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" utils/reporting/email_template.html
+          sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" utils/reporting/email_template.html
 
       - name: Send Stakeholder Email
         if: github.event_name != 'pull_request'
@@ -569,4 +569,4 @@ jobs:
           subject: "[Automation Report] Playwright E-Commerce Engine - Build #${{ github.run_id }} - Status: ${{ steps.analysis.outputs.status }}"
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
-          html_body: file://email_template.html
+          html_body: file://utils/reporting/email_template.html
