@@ -6,7 +6,7 @@ import { PIMPage } from '../../pages/PIM.page';
 
 // Clear storage to ensure a clean login state for security testing
 // used for security scenarios to avoid session leakage between tests
-test.use({ storageState: undefined });
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe('@edge PIM Security & Edge Cases', () => {
 

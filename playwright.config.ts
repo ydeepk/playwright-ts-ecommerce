@@ -157,6 +157,7 @@ export default defineConfig({
     {
       name: "api-only",
       testMatch: /.*api\.spec\.ts/,
+      dependencies:['setup-chromium'],
       use: {
         baseURL: "https://opensource-demo.orangehrmlive.com",
         extraHTTPHeaders: {
