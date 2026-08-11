@@ -14,6 +14,7 @@ export class PIMPage {
     private readonly saveButton: Locator;
     private readonly searchButton: Locator;
     private readonly resetButton: Locator;
+    private readonly deleteButton: Locator;
 
     // ==========================
     // Form Inputs
@@ -49,6 +50,7 @@ export class PIMPage {
         this.saveButton = page.getByRole('button', { name: 'Save' });
         this.searchButton = page.getByRole('button', { name: 'Search' });
         this.resetButton = page.getByRole('button', { name: 'Reset' });
+        this.deleteButton = page.getByRole('button', { name: 'Yes, Delete' });
 
         // Inputs
         this.firstNameInput = page.getByPlaceholder('First Name');
@@ -100,7 +102,9 @@ export class PIMPage {
      */
     async addNewEmployee(firstName: string, lastName: string): Promise<string> {
 
+        await expect(this.addButton).toBeVisible({timeout: 10000});
         await this.addButton.click();
+        
         await expect(this.page).toHaveURL(/addEmployee/);
 
         await this.firstNameInput.fill(firstName);
@@ -153,7 +157,8 @@ export class PIMPage {
         await expect(employeeRow).toHaveCount(1);
 
         await employeeRow.locator('.bi-trash').click();
-        await this.page.getByRole('button', { name: 'Yes, Delete' }).click();
+        await expect(this.deleteButton).toBeVisible({timeout: 10000});
+        await this.deleteButton.click();
 
         await this.searchButton.click();
         await expect(this.getEmployeeRow(employeeId)).toHaveCount(0);
