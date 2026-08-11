@@ -85,7 +85,7 @@ test.describe('@edge PIM Security & Edge Cases', () => {
             await essLoginPage.navigate();
             await essLoginPage.login(USERS.ESS.username, USERS.ESS.password);
 
-            await essPIMPage.navigateToEmployeeDetails(generatedId);
+            await essPIMPage.navigateToEmployeeDetails(generatedId!);
             
             const ssnField = essPage
                 .locator('label:has-text("SSN Number")')
