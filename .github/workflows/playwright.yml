@@ -532,7 +532,7 @@ jobs:
 
       - name: Generate Allure Report
         if: always()
-        run: npx allure generate allure-results --clean
+        run: npx allure@3 generate allure-results -o allure-report
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
