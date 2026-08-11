@@ -544,7 +544,7 @@ jobs:
       - name: Prepare HTML Email Template
         run: |
           # Professional Tip: Check if file exists first to avoid silent failures
-          if [ ! -f "email_template.html" ]; then
+          if [ ! -f "utils/reporting/email_template.html" ]; then
             echo "Error: email_template.html not found in root of repo!"
             exit 1
           fi
