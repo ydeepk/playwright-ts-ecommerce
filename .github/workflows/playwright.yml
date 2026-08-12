@@ -92,12 +92,6 @@ jobs:
           mkdir -p allure-results 
           cp data/issue-categories.json allure-results/
 
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: regression-allure-smoke-${{ matrix.shardIndex }}
-          path: allure-results/
-
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -111,7 +105,7 @@ jobs:
         with:
           name: smoke-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 7
+          retention-days: 30
 
       # Upload Playwright HTML report for debugging
       - uses: actions/upload-artifact@v5
@@ -119,7 +113,7 @@ jobs:
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 7
+          retention-days: 30
 
   generate-smoke-report:
     needs: [smoke-tests] # Replace with your actual smoke job name
@@ -201,12 +195,6 @@ jobs:
         if: always()
         run: cp data/issue-categories.json allure-results/
 
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: regression-allure-${{ matrix.shardIndex }}
-          path: allure-results/
-
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -220,7 +208,7 @@ jobs:
         with:
           name: regression-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 7
+          retention-days: 30
 
       # Stores Playwright reports for debugging failures
       - uses: actions/upload-artifact@v5
@@ -228,7 +216,7 @@ jobs:
         with:
           name: playwright-report-regression-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 7
+          retention-days: 30
 
   generate-report:
     needs: [regression-tests]
@@ -319,12 +307,6 @@ jobs:
         if: always()
         run: cp data/issue-categories.json allure-results/
 
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: regression-allure-nightly-${{ matrix.shardIndex }}
-          path: allure-results/
-
       - name: Validate Allure Results Before Upload
         run: |
           if [ ! -d "allure-results" ]; then
@@ -338,7 +320,7 @@ jobs:
         with:
           name: nightly-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 7
+          retention-days: 30
 
       # Stores Playwright reports for debugging
       - uses: actions/upload-artifact@v5
@@ -346,7 +328,7 @@ jobs:
         with:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 7
+          retention-days: 30
 
   generate-nightly-report:
     needs: [nightly-tests]
