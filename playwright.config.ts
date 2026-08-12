@@ -44,11 +44,17 @@ export default defineConfig({
     baseURL:
       process.env.BASE_URL || "https://opensource-demo.orangehrmlive.com/",
 
+    actionTimeout: 20000,
+    
+    navigationTimeout: 60000,
+
     // Capture diagnostic artifacts on failure to save disk space on runner nodes
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
+
+  timeout: 120000,
 
   projects: [
     // -------------------------------------------------------------------------
