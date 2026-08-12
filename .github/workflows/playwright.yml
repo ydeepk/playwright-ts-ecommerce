@@ -204,7 +204,7 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: regression-allure-regression-${{ matrix.shardIndex }}
+          name: regression-allure-${{ matrix.shardIndex }}
           path: allure-results/
 
       - name: Validate Allure Results Before Upload
