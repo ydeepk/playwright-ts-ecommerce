@@ -104,7 +104,7 @@ export class PIMPage {
 
         await expect(this.addButton).toBeVisible({timeout: 10000});
         await this.addButton.click();
-        
+
         await expect(this.page).toHaveURL(/addEmployee/);
 
         await this.firstNameInput.fill(firstName);
@@ -152,9 +152,11 @@ export class PIMPage {
 
         await expect(this.page).toHaveURL(/viewEmployeeList/);
 
-        const employeeRow = this.getEmployeeRow(employeeId);
+        await this.employeeIdInput.fill(employeeId);
+        await this.searchButton.click();
 
-        await expect(employeeRow).toHaveCount(1);
+        const employeeRow = this.getEmployeeRow(employeeId);
+        await expect(employeeRow).toHaveCount(1, {timeout: 10000});
 
         await employeeRow.locator('.bi-trash').click();
         await expect(this.deleteButton).toBeVisible({timeout: 10000});
