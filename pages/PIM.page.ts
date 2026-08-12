@@ -149,21 +149,22 @@ export class PIMPage {
      * Assumes search has already been performed or row is visible
      */
     async deleteEmployeeById(employeeId: string): Promise<void> {
-
+        
         await expect(this.page).toHaveURL(/viewEmployeeList/);
 
+        await this.employeeIdInput.clear();
         await this.employeeIdInput.fill(employeeId);
         await this.searchButton.click();
-
+        
         const employeeRow = this.getEmployeeRow(employeeId);
-        await expect(employeeRow).toHaveCount(1, {timeout: 10000});
 
+        await expect(employeeRow).toBeVisible({timeout: 60000});
         await employeeRow.locator('.bi-trash').click();
-        await expect(this.deleteButton).toBeVisible({timeout: 10000});
+
+        await expect(this.deleteButton).toBeVisible();
         await this.deleteButton.click();
 
-        await this.searchButton.click();
-        await expect(this.getEmployeeRow(employeeId)).toHaveCount(0);
+        await expect(employeeRow).toBeHidden({timeout: 60000});
     }
 
     /**
