@@ -1,53 +1,55 @@
-# Playwright CI Pipeline for multi-stage test execution
-# Covers:
-# - PR validation (smoke)
-# - Push validation (regression)
-# - Scheduled runs (full suite)
-# - Reporting + stakeholder notification
+# ==============================================================================
+# Pipeline: Playwright Multi-Stage E2E Test Execution & Reporting
+# Maintainer: Automation QA Team
+# Architecture Overview:
+#   1. Selective Triggering (PR vs Push vs Schedule vs Manual)
+#   2. Parallel Matrix Sharding for Execution Speed
+#   3. Consolidated Allure History & Single-Source-of-Truth Deployment
+#   4. Dynamic Metrics Extraction & Stakeholder Notification
+# ==============================================================================
+
 name: Playwright Test Pipeline
 
 on:
-  # Manual trigger for ad-hoc execution
+  # Enables manual execution via GitHub UI/API for ad-hoc testing
   workflow_dispatch:
 
-  # Run smoke tests on PRs targeting main branches
+  # Quality Gate: Runs fast smoke suite on PRs targeting main/master
   pull_request:
     branches: [main, master]
 
-  # Run regression suite on code push to main branches
+  # Regression Gate: Runs multi-browser suite on merge to main/master
   push:
     branches: [main, master]
 
-  # Nightly execution for full regression coverage
-  # Runs twice a week (Tuesday and Thursday) at 2:00 AM UTC
+  # Scheduled Audit: Full test suite execution (Tue/Thu at 02:00 UTC)
   schedule:
     - cron: "0 2 * * 2,4"
 
-# Prevents parallel runs on same branch from overlapping
-# Ensures resource efficiency and avoids report conflicts
+# Prevent concurrent runs on the same branch from stepping on each other's 
+# deployment state while conserving CI runner quota.
 concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: false
 
+# Granular GITHUB_TOKEN permissions required for GitHub Pages publishing
 permissions:
   contents: write
   pages: write
   id-token: write
 
 jobs:
-  # ==========================================
-  # SMOKE TESTS (PR VALIDATION)
-  # ==========================================
+  # ============================================================================
+  # JOB 1: SMOKE TESTS (PR Gate)
+  # Target execution time: < 10 mins via 2-way sharding
+  # ============================================================================
   smoke-tests:
-    # Executes only for pull request events
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
-    # Parallel shard execution to reduce runtime
     strategy:
-      fail-fast: false
+      fail-fast: false # Ensures failure in shard 1 doesn't terminate shard 2 prematurely
       matrix:
         shardIndex: [1, 2]
         shardTotal: [2]
@@ -55,22 +57,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Sets Node.js runtime and enables npm caching
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
 
-      # Clean install ensures deterministic dependency resolution
       - run: npm ci
 
-      # Cache Playwright browsers to reduce install time across runs
+      # Cache Playwright browser binaries to accelerate setup across workflow runs
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      # Installs required browsers and OS dependencies
       - run: npx playwright install --with-deps
 
       - name: Clean Allure Results
@@ -82,15 +81,12 @@ jobs:
           --project=smoke-chromium \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
+      # Attaches defect classification rules to raw result set
       - name: Copy Allure Categories
         if: always()
         run: |
-          echo "=== Current Working Directory ==="
-          pwd
-          echo "=== Workspace File Tree ==="
-          ls -R
           mkdir -p allure-results 
-          cp data/issue-categories.json allure-results/
+          cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
         run: |
@@ -99,62 +95,29 @@ jobs:
             exit 1
           fi
 
-      # Upload Allure raw results for later aggregation
+      # Upload raw Allure XML/JSON data for downstream aggregation in merge-report
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: smoke-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 30
+          retention-days: 60
 
-      # Upload Playwright HTML report for debugging
+      # Upload native Playwright HTML report artifacts for direct log debugging
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-smoke-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 30
+          retention-days: 60
 
-  generate-smoke-report:
-    needs: [smoke-tests] # Replace with your actual smoke job name
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # 1. Pull the Smoke results specifically
-      - name: Download Smoke shard results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: smoke-allure-*
-          path: smoke-results
-          merge-multiple: true
-
-      # 2. Pull Smoke History (Crucial for the Trend)
-      - name: Get Smoke History
-        continue-on-error: true
-        run: |
-          # Adjust the path to where your smoke history is stored on gh-pages
-          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/smoke/history.tar.gz || true
-          tar -xvf history.tar.gz -C smoke-results || true
-
-      # 3. Build & Deploy
-      - name: Build Smoke Report
-        uses: simple-elf/allure-report-action@master
-        with:
-          allure_results: smoke-results
-          allure_history: allure-history
-          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
-          subfolder: smoke # This keeps it separate from regression
-
-  # ==========================================
-  # REGRESSION TESTS (PUSH VALIDATION)
-  # ==========================================
+  # ============================================================================
+  # JOB 2: REGRESSION TESTS (Post-Merge Validation)
+  # Cross-browser matrix execution sharded 3 ways
+  # ============================================================================
   regression-tests:
-    # Executes on direct pushes to main branches
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
     strategy:
@@ -193,7 +156,7 @@ jobs:
 
       - name: Copy Allure Categories
         if: always()
-        run: cp data/issue-categories.json allure-results/
+        run: cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
         run: |
@@ -202,74 +165,27 @@ jobs:
             exit 1
           fi
 
-      # Stores Allure data for cross-shard merge
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: regression-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 30
+          retention-days: 60
 
-      # Stores Playwright reports for debugging failures
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-regression-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 30
+          retention-days: 60
 
-  generate-report:
-    needs: [regression-tests]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # 1. Download ALL shard results
-      - name: Download all shard results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: regression-allure-*
-          path: all-results
-          merge-multiple: true
-
-      # 2. Get history from the previous deployment
-      - name: Get Allure history
-        continue-on-error: true
-        run: |
-          # Use curl to pull history from your live GitHub Pages site
-          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/history.tar.gz || true
-          tar -xvf history.tar.gz -C all-results || true
-
-      # 3. Build the report with history
-      - name: Build Allure Report
-        uses: simple-elf/allure-report-action@master
-        if: always()
-        with:
-          allure_results: all-results
-          allure_history: allure-history
-          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
-          keep_reports: 20
-
-      # 4. Deploy to GitHub Pages
-      - name: Deploy report to Github Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: allure-history
-          force_orphan: true
-          user_name: "github-actions[bot]"
-          user_email: "github-actions[bot]@users.noreply.github.com"
-
-  # ==========================================
-  # NIGHTLY FULL SUITE
-  # ==========================================
+  # ============================================================================
+  # JOB 3: NIGHTLY FULL SUITE (Scheduled Health Check)
+  # Deep-coverage execution sharded 4 ways
+  # ============================================================================
   nightly-tests:
-    # Executes on scheduled cron trigger only
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     timeout-minutes: 60
 
     strategy:
@@ -305,7 +221,7 @@ jobs:
 
       - name: Copy Allure Categories
         if: always()
-        run: cp data/issue-categories.json allure-results/
+        run: cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
         run: |
@@ -314,70 +230,35 @@ jobs:
             exit 1
           fi
 
-      # Stores Allure results for aggregation
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: nightly-allure-${{ matrix.shardIndex }}
           path: allure-results/
-          retention-days: 30
+          retention-days: 60
 
-      # Stores Playwright reports for debugging
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report-nightly-${{ matrix.shardIndex }}
           path: playwright-report/
-          retention-days: 30
+          retention-days: 60
 
-  generate-nightly-report:
-    needs: [nightly-tests]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # 1. Collect results from all nightly shards
-      - name: Download Nightly results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: nightly-allure-*
-          path: nightly-results
-          merge-multiple: true
-
-      # 2. Extract previous history from the 'nightly' subfolder
-      - name: Get Nightly History
-        continue-on-error: true
-        run: |
-          # Fetching from your specific nightly path
-          curl -O https://ydeepk.github.io/playwright-ts-ecommerce/nightly/history.tar.gz || true
-          tar -xvf history.tar.gz -C nightly-results || true
-
-      # 3. Build with the 'nightly' subfolder specified
-      - name: Build Nightly Allure Report
-        uses: simple-elf/allure-report-action@master
-        with:
-          allure_results: nightly-results
-          allure_history: allure-history
-          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
-          subfolder: nightly
-          keep_reports: 30 # Nightly history is usually kept longer for RCA
-
-  # ==========================================
-  # ALLURE MERGE + REPORT DEPLOYMENT
-  # ==========================================
+  # ============================================================================
+  # JOB 4: REPORT CONSOLIDATION & PUBLISHING
+  # Merges raw results across shards and deploys live Allure Dashboard to gh-pages.
+  # acts as the single source of truth for deployments to eliminate race conditions.
+  # ============================================================================
   merge-report:
     runs-on: ubuntu-latest
-
     timeout-minutes: 15
 
-    # Dynamically depend on the job that actually ran
     needs:
       - smoke-tests
       - regression-tests
       - nightly-tests
 
-    # Ensures execution only if at least one upstream job was triggered
+    # Executes if at least one upstream execution job ran (ignoring skipped jobs)
     if: >
       always() &&
       !cancelled() &&
@@ -394,10 +275,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # ------------------------------------------
-      # Downloads only existing artifacts
-      # Avoids failure when some jobs are skipped
-      # ------------------------------------------
+      # Wildcard pattern matches results regardless of which stage ran (smoke/regression/nightly)
       - name: Download all results
         uses: actions/download-artifact@v5
         with:
@@ -405,10 +283,7 @@ jobs:
           path: all-results
           merge-multiple: true
 
-      # ------------------------------------------
-      # Defensive check → avoids empty report generation
-      # Without this, Allure generates blank dashboard
-      # ------------------------------------------
+      # Guard step prevents generating corrupt empty reports if test execution aborted early
       - name: Validate Allure Results Exist
         run: |
           if [ ! -d "all-results" ] || [ -z "$(ls -A all-results)" ]; then
@@ -416,10 +291,7 @@ jobs:
             exit 0
           fi
 
-      # ------------------------------------------
-      # Build Allure report with history retention
-      # Enables trend analysis across runs
-      # ------------------------------------------
+      # Compiles static HTML dashboard incorporating history trend points
       - name: Build Allure Report
         uses: simple-elf/allure-report-action@master
         if: always()
@@ -429,33 +301,25 @@ jobs:
           subfolder: allure-results
           allure_report: allure-report
           allure_history: allure-history
-          allure_version: 2.29.0 # FIX: Locks CLI syntax to v2
+          allure_version: 2.29.0
           keep_reports: 30
 
-      # ------------------------------------------
-      # Deploy only for non-PR events
-      # PR deployments pollute gh-pages unnecessarily
-      # ------------------------------------------
+      # Deploys compiled report tree to GitHub Pages (bypasses PR builds to prevent site pollution)
       - name: Deploy Report to Github Pages
         if: github.event_name != 'pull_request'
-        # UPGRADED: v3 -> v4 handles newer Node versions seamlessly
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history
           keep_files: true
-
-          # CRITICAL FIX: Forces an independent commit tree,
-          # completely bypassing the "cannot lock ref" concurrency error
-          force_orphan: true
-
-          # Explicit bot configurations to stabilize access tokens
+          force_orphan: true # Isolates commit history to avoid Git lock conflicts
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
 
-  # ==========================================
-  # RESULT ANALYSIS + EMAIL NOTIFICATION
-  # ==========================================
+  # ============================================================================
+  # JOB 5: METRICS ANALYSIS & EMAIL NOTIFICATION
+  # Parses test statistics and sends structured HTML metrics email to stakeholders.
+  # ============================================================================
   analyze-results:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -463,8 +327,7 @@ jobs:
     if: always()
 
     steps:
-      # CRITICAL: This downloads your repo (including email_template.html)
-      # so the 'sed' command has a file to work with.
+      # Checkout required to access repository root assets (email_template.html)
       - uses: actions/checkout@v4
 
       - name: Aggregate JSON Metrics
@@ -474,6 +337,7 @@ jobs:
           path: reports
           merge-multiple: true
 
+      # Extracts high-level counts directly from Playwright JSON reporters via jq
       - name: Extract Detailed Metrics
         id: analysis
         run: |
@@ -494,44 +358,14 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "status=$([[ $FAILED -eq 0 ]] && echo 'PASSED' || echo 'FAILED')" >> $GITHUB_OUTPUT
 
-      # ==========================================
-      # Capture allure history for trends
-      # ==========================================
-      - name: Get Allure history
-        uses: actions/checkout@v4
-        if: always()
-        with:
-          ref: gh-pages
-          path: gh-pages-dir
-
-      - name: Copy History Trend to Results
-        if: always()
-        run: |
-          mkdir -p allure-results
-          if [ -d "gh-pages-dir/history" ]; then
-            cp -r gh-pages-dir/history allure-results/
-          fi
-
-      - name: Generate Allure Report
-        if: always()
-        run: npx allure@3 generate allure-results -o allure-report
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        if: always()
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-report
-
+      # Injects dynamic run stats into local HTML email template
       - name: Prepare HTML Email Template
         run: |
-          # Professional Tip: Check if file exists first to avoid silent failures
           if [ ! -f "utils/reporting/email_template.html" ]; then
-            echo "Error: email_template.html not found in root of repo!"
+            echo "Error: email_template.html not found in repo root!"
             exit 1
           fi
 
-          # Replace placeholders with real values
           sed -i "s/\${STATUS}/${{ steps.analysis.outputs.status }}/g" utils/reporting/email_template.html
           sed -i "s/\${TOTAL}/${{ steps.analysis.outputs.total }}/g" utils/reporting/email_template.html
           sed -i "s/\${PASSED}/${{ steps.analysis.outputs.passed }}/g" utils/reporting/email_template.html
@@ -539,6 +373,7 @@ jobs:
           sed -i "s/\${TIMESTAMP}/$(date +'%Y-%m-%d %H:%M:%S')/g" utils/reporting/email_template.html
           sed -i "s/\${RUN_ID}/${{ github.run_id }}/g" utils/reporting/email_template.html
 
+      # Transmits final notification report to target email distribution list
       - name: Send Stakeholder Email
         if: github.event_name != 'pull_request'
         uses: dawidd6/action-send-mail@v3
@@ -547,7 +382,6 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          # FIX: Formatted Subject line to explicitly match requested Stakeholder Subject Formula
           subject: "[Automation Report] Playwright E-Commerce Engine - Build #${{ github.run_id }} - Status: ${{ steps.analysis.outputs.status }}"
           to: yadavdeepak@outlook.com,kozonhq@gmail.com
           from: Playwright Automation Team
