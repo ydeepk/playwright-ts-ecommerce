@@ -1,6 +1,7 @@
 // Base Playwright test + assertion library
 // We extend this to inject custom fixtures (POMs)
-import { test as base } from '@playwright/test';
+import { test as base, BrowserContext, Page } from '@playwright/test';
+import path from 'path';
 
 // Page Object Models (each represents a screen or feature)
 import { LoginPage } from '../pages/Login.page';
@@ -27,6 +28,11 @@ type MyFixtures = {
     navbar: Navbar;
     navigation: Navigation;
     cartPage: CartPage;
+    createPageForRole: (role: 'admin' | 'ess') => Promise<{ 
+        page: Page; 
+        pimPage: PIMPage; 
+        loginPage: LoginPage
+    }> ;
 }
 
 // Extend Playwright's base test to include custom fixtures
@@ -64,7 +70,41 @@ export const test = base.extend<MyFixtures>({
 
     cartPage: async ({ page }, use) => {
         await use(new CartPage(page));
+    },
+
+    createPageForRole: async({ browser }, use, testInfo) => {
+    
+    const createdContexts: BrowserContext[] = [];
+
+    const factory = async(role: 'admin' | 'ess') => {
+
+        const rawProjectName = testInfo.project.name.toLowerCase();
+
+        let browserType = 'chromium';
+        if(rawProjectName.includes('firefox')) browserType = 'firefox';
+        if(rawProjectName.includes('webkit')) browserType = 'webkit';
+
+        const storagePath = path.join(__dirname,`playwright-utils/.auth/${role}-${browserType}-storageState.json`);
+        const context = await browser.newContext({storageState: storagePath});
+        createdContexts.push(context);
+
+        const page = await context.newPage();
+
+        return {
+            page, pimPage: 
+            new PIMPage(page), 
+            loginPage: new LoginPage(page)
+        };
+    
+    };
+
+    await use(factory);
+
+    for(const context of createdContexts) {
+        await context.close();
     }
+}
+
 });
 
 // Re-export expect so tests can import from this file instead of Playwright directly

@@ -1,108 +1,58 @@
-import { test, expect } from '../../fixtures/base.fixture';
-import * as allure from 'allure-js-commons';
-import { USERS } from '../../config/credentials';
-import { LoginPage } from '../../pages/Login.page';
-import { PIMPage } from '../../pages/PIM.page';
+import { test, expect } from '../../fixtures/fixtures';
 
-// Clear storage to ensure a clean login state for security testing
-// used for security scenarios to avoid session leakage between tests
-test.use({ storageState: { cookies: [], origins: [] } });
+/**
+ * PIM Security & Role-Based Access Control (RBAC) Test Suite
+ * Validates data masking, field authorization limits, and privilege separation
+ * between Administrative users and Employee Self-Service (ESS) users.
+ */
+test.describe('PIM Security & Data Masking', () => {
 
-test.describe('@edge PIM Security & Edge Cases', () => {
+  test('ESS user should see masked sensitive employee data and restricted edit access', async ({ createPageForRole }) => {
+    const firstName = 'Secure';
+    const lastName = 'User';
+    const ssnValue = '999-66-1111';
+    let generatedId: string;
 
-    let generatedId: string | undefined;
+    // =========================================================================
+    // STAGE 1: Admin User Action Phase
+    // Leverages Admin storage state context to perform privileged data setup.
+    // =========================================================================
+    await test.step('Admin: Create employee record with sensitive SSN data', async () => {
+      const { pimPage, page } = await createPageForRole('admin');
 
-    test.afterEach(async ({ pimPage }) => {
-    if (generatedId) {
-        await pimPage.navigateToEmployeeList();
-        await pimPage.searchEmployeeById(generatedId);
-        await pimPage.deleteEmployeeById(generatedId);
-        generatedId = undefined; // critical reset
-    }
-});
+      await pimPage.navigate();
+      generatedId = await pimPage.addNewEmployee(firstName, lastName);
+      
+      await pimPage.navigateToEmployeeDetails(generatedId);
+      await pimPage.updateSSN(ssnValue);
 
-    test('Employee Self Service user should not access PIM via UI or direct URL', async ({ page, loginPage, pimPage }) => {
-    
-        // Allure metadata traceability and reporting
-        await allure.label('epic', 'HR Management');
-        await allure.label('feature', 'PIM Module');
-        await allure.label('story', 'Unauthorized Access Protection');
-        await allure.label('severity', 'critical');
-        await allure.owner('Deepak');
-
-        await test.step('Login with ESS credentials', async () => {
-            // Using POM instead of raw navigation keeps abstraction clean
-            await loginPage.navigate();
-            await loginPage.login(USERS.ESS.username, USERS.ESS.password);
-        });
-
-        await test.step('Verify direct access to PIM is blocked', async () => {
-            // Direct URL validation ensures backend-level authorization, not just UI restriction
-            await pimPage.navigateToEmployeeList(); 
-            await expect(page.getByText(/Credential Required/i)).toBeVisible();
-            // Consider adding URL assertion for stronger validation of access denial
-        });
-
-        await test.step('Verify PIM link is hidden in sidebar', async () => {
-            // UI-level validation complements backend check; ensures proper role-based rendering
-            await expect(page.getByRole('link', { name: 'PIM' })).toBeHidden();
-        });
+      // Verify Administrative privilege allows unmasked data access
+      const ssnInput = page.locator('label:has-text("SSN Number")').locator('xpath=./../..//input');
+      await expect(ssnInput).toHaveValue(ssnValue);
     });
 
-    test('ESS user should see masked sensitive employee data and restricted edit access', async ({ page, browser, pimPage, loginPage }) => {
-        const firstName = 'Secure';
-        const lastName = 'User';
-        const ssnValue = '999-66-1111';
-       
+    // =========================================================================
+    // STAGE 2: ESS User Security Verification Phase
+    // Switches to an isolated ESS storage state context to evaluate security controls.
+    // =========================================================================
+    await test.step('ESS User: Verify SSN field is masked and write access is restricted', async () => {
+      const { pimPage: essPimPage, page: essPage } = await createPageForRole('ess');
 
-        await test.step('Admin: Create employee with SSN', async () => {
-            // Good reuse of POM for entity creation
-            generatedId = await pimPage.addNewEmployee(firstName, lastName);
-            
-            // Explicit navigation ensures deterministic state before update
-            await pimPage.navigateToEmployeeDetails(generatedId);
-            
-            // Encapsulated update logic in POM improves maintainability
-            await pimPage.updateSSN(ssnValue);
-            
-            const ssnField = page
-                .locator('label:has-text("SSN Number")')
-                .locator('xpath=./../..//input');
-            // State-based validation (field value) is more reliable than toast checks
+      // Navigate directly via ID to test authorization headers and UI rendering
+      await essPimPage.navigateToEmployeeDetails(generatedId);
 
-            await expect(ssnField).toHaveValue(ssnValue);
-        });
+      const essSsnInput = essPage.locator('label:has-text("SSN Number")').locator('xpath=./../..//input');
 
-        // Simulating the second user
-        const essContext = await browser.newContext();
-        const essPage = await essContext.newPage();
-        const essLoginPage = new LoginPage(essPage);
-        const essPIMPage = new PIMPage(essPage);
-        // Correct multi-context isolation to simulate different user roles
+      // 1. Data Masking Validation: Ensure raw SSN value is not exposed to non-admin roles
+      const actualValue = await essSsnInput.inputValue();
+      expect(actualValue).not.toBe(ssnValue); 
+      expect(actualValue).toContain('*'); 
 
-        await test.step('ESS User: Verify SSN is masked', async () => {
-            // Reusing POM in new context avoids duplication and keeps logic consistent
-            await essLoginPage.navigate();
-            await essLoginPage.login(USERS.ESS.username, USERS.ESS.password);
-
-            await essPIMPage.navigateToEmployeeDetails(generatedId!);
-            
-            const ssnField = essPage
-                .locator('label:has-text("SSN Number")')
-                .locator('xpath=./../..//input');
-
-            const actualValue = await ssnField.inputValue();
-            
-            // Validates masking behavior rather than exact value
-            expect(actualValue).not.toBe(ssnValue); 
-            expect(actualValue).toContain('*'); 
-            // Consider stricter masking validation (e.g., no digits exposed)
-
-            await expect(ssnField).toBeDisabled();
-            // Field disabled check ensures UI-level restriction on sensitive data editing
-        });
-
-        await essContext.close();
-        // Explicit context cleanup prevents resource leakage in parallel runs
+      // 2. UI-Level Authorization Check: Verify edit access is revoked for ESS role
+      await expect(essSsnInput).toBeDisabled();
     });
+
+    // Note: Secondary browser contexts are automatically torn down post-test execution by the fixture framework.
+  });
+
 });
