@@ -1,5 +1,6 @@
 // Import Playwright test runner (aliased as 'setup' for clarity)
 // This distinguishes setup tests from regular test cases
+import { USERS } from '../config/credentials';
 import { test as setup } from '../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
 
@@ -16,7 +17,7 @@ setup('Authenticate', async ({ page, loginPage ,browserName }) => {
 
     // Perform login with valid credentials
     // Hardcoded for demo → should be replaced with env variables in real projects
-    await loginPage.login('Admin', 'admin123');
+    await loginPage.login(USERS.ADMIN.username, USERS.ADMIN.password);
 
     // Validate successful login by checking dashboard URL
     // Acts as guard to ensure authentication actually worked
