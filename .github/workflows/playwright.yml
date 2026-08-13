@@ -373,4 +373,4 @@ jobs:
           SMTP_USER: ${{ secrets.MAIL_USERNAME }}
           SMTP_PASS: ${{ secrets.MAIL_PASSWORD }}
           EMAIL_STAKEHOLDERS: 'yadavdeepak@outlook.com,kozonhq@gmail.com'
-        run: npx ts-node scripts/send-email-report.ts
+        run: npx tsx scripts/send-email-report.ts

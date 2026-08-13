@@ -28,6 +28,7 @@
     "allure-commandline": "^2.38.1",
     "allure-playwright": "^3.7.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   },
   "dependencies": {
