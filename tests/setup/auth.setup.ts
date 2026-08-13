@@ -3,7 +3,6 @@
 import { USERS } from '../../src/config/credentials';
 import { test as setup } from '../../src/fixtures/base.fixture';
 
-
 // Setup test responsible for authentication
 // This runs BEFORE other tests and generates reusable session state
 setup('Authenticate', async ({ page, loginPage ,browserName }) => {

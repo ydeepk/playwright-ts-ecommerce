@@ -76,6 +76,12 @@ jobs:
         run: rm -rf allure-results && mkdir allure-results
 
       - name: Run Smoke Tests
+        env:
+          ADMIN_USER: ${{ secrets.ADMIN_USER }}
+          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+          ESS_USER: ${{ secrets.ESS_USER }}
+          ESS_PASS: ${{ secrets.ESS_PASS }}
+
         run: |
           npx playwright test --retries=1 \
           --project=smoke-chromium \
@@ -147,6 +153,12 @@ jobs:
         run: rm -rf allure-results && mkdir allure-results
 
       - name: Run Regression Tests
+        env:
+          ADMIN_USER: ${{ secrets.ADMIN_USER }}
+          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+          ESS_USER: ${{ secrets.ESS_USER }}
+          ESS_PASS: ${{ secrets.ESS_PASS }}
+
         run: |
           npx playwright test --retries=1 \
           --project=regression-chromium \
@@ -215,6 +227,12 @@ jobs:
         run: rm -rf allure-results && mkdir allure-results
 
       - name: Run Full Suite
+        env:
+          ADMIN_USER: ${{ secrets.ADMIN_USER }}
+          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+          ESS_USER: ${{ secrets.ESS_USER }}
+          ESS_PASS: ${{ secrets.ESS_PASS }}
+          
         run: |
           npx playwright test --retries=1 \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
