@@ -8,7 +8,7 @@ import { test as setup } from '../../src/fixtures/base.fixture';
 // This runs BEFORE other tests and generates reusable session state
 setup('Authenticate', async ({ page, loginPage ,browserName }) => {
 
-    const authFile = `playwright-utils/.auth/${browserName}-storageState.json`;
+    const authFile = `.auth/${browserName}-storageState.json`;
 
     // Navigate to login page
     // Must succeed → otherwise all dependent tests will fail

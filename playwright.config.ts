@@ -13,20 +13,20 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
 
   // Keep local runs fast for quick feedback; allow retries in CI for transient infra noise
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
 
   // Cap CI workers to avoid resource starvation on GitHub/GitLab runners
-  workers: process.env.CI ? 2 : undefined,
+  workers: process.env.CI ? 2 : 2,
 
   reporter: [
-    ["html", { outputFolder: "playwright-report", open: "never" }],
-    ["json", { outputFile: "playwright-report/report.json" }],
+    ["html", { outputFolder: "test-results/html-report", open: "never" }],
+    ["json", { outputFile: "test-results/report.json" }],
     ["junit", { outputFile: "test-results/junit.xml" }],
     ["list"],
     [
       "allure-playwright",
       {
-        resultsDir: "allure-results",
+        resultsDir: "test-results/allure-results",
         detail: true,
         outputFolder: "allure-results",
         suiteTitle: false,
@@ -41,11 +41,9 @@ export default defineConfig({
 
   use: {
     // Override via BASE_URL env var in pipeline triggers
-    baseURL:
-      process.env.BASE_URL || "https://opensource-demo.orangehrmlive.com/",
-
-    actionTimeout: 20000,
+    baseURL: process.env.BASE_URL || "https://opensource-demo.orangehrmlive.com/",
     
+    actionTimeout: 20000,
     navigationTimeout: 60000,
 
     // Capture diagnostic artifacts on failure to save disk space on runner nodes
@@ -81,6 +79,7 @@ export default defineConfig({
     {
       name: "auth-chromium",
       grep: /@auth\b/,
+      dependencies:["smoke-chromium","regression-chromium"],
       use: {
         ...devices["Desktop Chrome"],
         // Purge session to prevent state leakage from setup project
@@ -170,6 +169,7 @@ export default defineConfig({
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        storageState: ".auth/chromium-storageState.json",
       },
     },
   ],
