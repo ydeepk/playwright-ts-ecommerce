@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 
 export class LoginPage {
 
@@ -33,7 +33,7 @@ export class LoginPage {
      * Uses baseURL-relative path for environment flexibility
      */
     async navigate(): Promise<void> {
-        await this.page.goto('/web/index.php/auth/login');
+        await this.page.goto('/web/index.php/auth/login', { waitUntil: 'domcontentloaded'});
     }
 
     /**
