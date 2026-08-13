@@ -1,5 +1,5 @@
-import { test, expect } from '../../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
+import { test } from '../../src/fixtures/base.fixture';
 
 // Regression suite for PIM employee lifecycle
 // Assumes authenticated session is handled via storageState

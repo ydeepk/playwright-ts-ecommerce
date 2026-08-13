@@ -1,6 +1,6 @@
  // Import Playwright test utilities
 // 'test' defines test cases, 'expect' is used for assertions
-import { test, expect } from '../../fixtures/base.fixture';
+import { test } from '../../src/fixtures/base.fixture';
 
 // Import test data for data-driven testing
 import * as data from '../../data/products.json';

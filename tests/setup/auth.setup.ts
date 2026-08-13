@@ -1,8 +1,7 @@
 // Import Playwright test runner (aliased as 'setup' for clarity)
 // This distinguishes setup tests from regular test cases
-import { USERS } from '../config/credentials';
-import { test as setup } from '../fixtures/base.fixture';
-import * as allure from 'allure-js-commons';
+import { USERS } from '../../src/config/credentials';
+import { test as setup } from '../../src/fixtures/base.fixture';
 
 
 // Setup test responsible for authentication

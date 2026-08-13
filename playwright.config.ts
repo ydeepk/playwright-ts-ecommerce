@@ -1,4 +1,4 @@
-import { chromium, defineConfig, devices } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -63,17 +63,17 @@ export default defineConfig({
     // -------------------------------------------------------------------------
     {
       name: "setup-chromium",
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "setup-firefox",
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices["Desktop Firefox"] },
     },
     {
       name: "setup-webkit",
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices["Desktop Safari"] },
     },
 
@@ -94,7 +94,7 @@ export default defineConfig({
       grep: /@smoke\b/,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: `playwright-utils/.auth/chromium-storageState.json`,
+        storageState: `.auth/chromium-storageState.json`,
       },
       dependencies: ["setup-chromium"],
     },
@@ -107,7 +107,7 @@ export default defineConfig({
       grep: /@regression\b/,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: "playwright-utils/.auth/chromium-storageState.json",
+        storageState: ".auth/chromium-storageState.json",
       },
       dependencies: ["setup-chromium"],
     },
@@ -116,7 +116,7 @@ export default defineConfig({
       grep: /@regression\b/,
       use: {
         ...devices["Desktop Firefox"],
-        storageState: "playwright-utils/.auth/firefox-storageState.json",
+        storageState: ".auth/firefox-storageState.json",
       },
       dependencies: ["setup-firefox"],
     },
@@ -125,7 +125,7 @@ export default defineConfig({
       grep: /@regression\b/,
       use: {
         ...devices["Desktop Safari"],
-        storageState: "playwright-utils/.auth/webkit-storageState.json",
+        storageState: ".auth/webkit-storageState.json",
       },
       dependencies: ["setup-webkit"],
     },
@@ -136,7 +136,7 @@ export default defineConfig({
       grep: /@edge\b/,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: "playwright-utils/.auth/chromium-storageState.json",
+        storageState: ".auth/chromium-storageState.json",
       },
       dependencies: ["setup-chromium"],
     },
@@ -145,7 +145,7 @@ export default defineConfig({
       grep: /@edge\b/,
       use: {
         ...devices["Desktop Firefox"],
-        storageState: "playwright-utils/.auth/firefox-storageState.json",
+        storageState: ".auth/firefox-storageState.json",
       },
       dependencies: ["setup-firefox"],
     },
@@ -154,7 +154,7 @@ export default defineConfig({
       grep: /@edge\b/,
       use: {
         ...devices["Desktop Safari"],
-        storageState: "playwright-utils/.auth/webkit-storageState.json",
+        storageState: ".auth/webkit-storageState.json",
       },
       dependencies: ["setup-webkit"],
     },

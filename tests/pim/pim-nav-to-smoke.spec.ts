@@ -1,5 +1,5 @@
-import { test, expect } from '../../fixtures/base.fixture';
 import * as allure from 'allure-js-commons';
+import { test } from '../../src/fixtures/base.fixture';
 
 test.describe('@smoke Navigation to PIM', () => {
 

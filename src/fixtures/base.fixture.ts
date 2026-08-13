@@ -4,14 +4,14 @@ import { test as base, BrowserContext, Page } from '@playwright/test';
 import path from 'path';
 
 // Page Object Models (each represents a screen or feature)
-import { LoginPage } from '../pages/Login.page';
 import { DashboardPage } from '../pages/Dashboard.page';
+import { LoginPage } from '../pages/Login.page';
 import { PIMPage } from '../pages/PIM.page';
 import { ProductPage } from '../pages/Product.page';
 
 // Reusable UI components (shared across multiple pages)
-import { Navbar } from '../pages/components/Navbar';
-import { Navigation } from '../pages/components/Navigation';
+import { Navbar } from '../components/Navbar.component';
+import { Navigation } from '../components/Navigation.components';
 
 // Feature-specific page (cart flows)
 import { CartPage } from '../pages/Cart.page';

@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/fixtures';
+import { expect, test } from '../../src/fixtures/fixtures';
 
 /**
  * PIM Security & Role-Based Access Control (RBAC) Test Suite
