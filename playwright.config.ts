@@ -19,14 +19,14 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 2,
 
   reporter: [
-    ["html", { outputFolder: "test-results/html-report", open: "never" }],
-    ["json", { outputFile: "test-results/report.json" }],
+    ["html", { outputFolder: "playwright-report", open: "never" }],
+    ["json", { outputFile: "playwright-report/report.json" }],
     ["junit", { outputFile: "test-results/junit.xml" }],
     ["list"],
     [
       "allure-playwright",
       {
-        resultsDir: "test-results/allure-results",
+        resultsDir: "allure-results",
         detail: true,
         outputFolder: "allure-results",
         suiteTitle: false,
