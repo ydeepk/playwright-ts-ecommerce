@@ -8,32 +8,31 @@
 > A production-grade end-to-end (E2E) and API test automation architecture built with **Playwright** and **TypeScript**. Designed around deterministic execution, strict separation of concerns, custom fixture injection, and zero-maintenance CI/CD feedback loops.
 
 ---
-
 ## 🏛️ Framework Architecture & Design Philosophy
 
 Rather than treating test automation as simple browser scripting, this framework approaches test design from a **System Architecture** perspective.
 
+```text
 ┌──────────────────────────────────────────┐
-              │          Spec Files (tests/*)            │
-              └────────────────────┬─────────────────────┘
-                                   │ (Dependency Injection via Fixtures)
-                                   ▼
-              ┌──────────────────────────────────────────┐
-              │       Custom Fixtures (base.fixture)     │
-              └─────────┬──────────────────────┬─────────┘
-                        │                      │
-   ┌────────────────────▼─────┐          ┌─────▼───────────────────┐
-   │   Page & Component Objects│          │    API Service Clients  │
-   │   (src/pages, components)│          │        (src/api)        │
-   └────────────┬─────────────┘          └─────────────┬───────────┘
-                │                                      │
-                └──────────────────┬───────────────────┘
-                                   │
-                                   ▼
-              ┌──────────────────────────────────────────┐
-              │          Application Under Test          │
-              └──────────────────────────────────────────┘
-
+│          Spec Files (tests/*)            │
+└────────────────────┬─────────────────────┘
+                     │ (Dependency Injection via Fixtures)
+                     ▼
+┌──────────────────────────────────────────┐
+│       Custom Fixtures (base.fixture)     │
+└─────────┬──────────────────────┬─────────┘
+          │                      │
+┌─────────▼────────────────┐   ┌─▼─────────────────────────┐
+│ Page & Component Objects │   │    API Service Clients    │
+│ (src/pages, components)  │   │         (src/api)         │
+└─────────┬────────────────┘   └─────────┬─────────────────┘
+          │                              │
+          └──────────────┬───────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────┐
+│          Application Under Test          │
+└──────────────────────────────────────────┘
 
 ### 🧠 Core Architectural Pillars
 
