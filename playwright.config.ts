@@ -164,7 +164,7 @@ export default defineConfig({
       testMatch: /.*api\.spec\.ts/,
       dependencies:['setup-chromium'],
       use: {
-        baseURL: "https://opensource-demo.orangehrmlive.com",
+        baseURL: process.env.Base_URL || "https://opensource-demo.orangehrmlive.com",
         extraHTTPHeaders: {
           Accept: "application/json",
           "Content-Type": "application/json",
