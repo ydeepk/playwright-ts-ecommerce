@@ -1,4 +1,4 @@
-# 🎭 Enterprise Playwright & TypeScript E2E Framework
+# 🎭 Playwright & TypeScript E2E Framework
 
 ![Playwright](https://img.shields.io/badge/Playwright-v1.40+-2EAD33?style=for-the-badge&logo=Playwright&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-v5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
