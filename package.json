@@ -22,7 +22,7 @@
   "license": "GNU GENERAL PUBLIC LICENSE v3",
   "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "1.58.2",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.6.0",
     "@types/nodemailer": "^8.0.1",
     "allure-commandline": "^2.38.1",
