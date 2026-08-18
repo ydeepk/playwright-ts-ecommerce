@@ -73,7 +73,7 @@ function findJsonReportFiles(dir: string): string[] {
 
 function parseReports(resultsDir: string) {
   const jsonFiles = findJsonReportFiles(resultsDir);
-  
+
   let totalDurationMs = 0;
   let totalTests = 0;
   let passedTests = 0;
@@ -85,7 +85,7 @@ function parseReports(resultsDir: string) {
     Authentication: { name: 'Authentication & Access Security', scenarios: new Set(), passed: 0, failed: 0 },
     Admin: { name: 'Admin Portal & System User Management', scenarios: new Set(), passed: 0, failed: 0 },
     ESS: { name: 'Employee Self Service (ESS) & Profile', scenarios: new Set(), passed: 0, failed: 0 },
-    Core: { name: 'Core Workflows & Navigation', scenarios: new Set(), passed: 0, failed: 0 }
+    Core: { name: 'Core Workflows & Navigation', scenarios: new Set(), passed: 0, failed: 0 },
   };
 
   jsonFiles.forEach((file) => {
@@ -98,7 +98,6 @@ function parseReports(resultsDir: string) {
       }
 
       function processSuite(suite: Suite) {
-        // Module categorizer based on file paths
         const filePath = suite.file || '';
         let targetModuleKey = 'Core';
         if (filePath.includes('auth') || filePath.includes('login')) targetModuleKey = 'Authentication';
@@ -163,7 +162,7 @@ function parseReports(resultsDir: string) {
     passRate,
     durationMinutes,
     projectMap,
-    moduleMap
+    moduleMap,
   };
 }
 
@@ -201,10 +200,27 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
   const statusColor = overallStatus === 'PASSED' ? '#2e7d32' : '#d32f2f';
   const statusBg = overallStatus === 'PASSED' ? '#e8f5e9' : '#ffebee';
 
-  const allureBaseUrl = 'https://yadavdeepak.github.io/playwright-e2e';
-  const githubRepoUrl = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY 
-    ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}` 
-    : 'https://github.com/yadavdeepak/playwright-e2e';
+  // Dynamic GitHub Pages & Repository URL Resolution
+  const repoFullName = process.env.GITHUB_REPOSITORY || 'ydeepk/playwright-ts-ecommerce';
+  const [repoOwner, repoName] = repoFullName.split('/');
+
+  const allureBaseUrl = `https://${repoOwner}.github.io/${repoName}`;
+  const githubRepoUrl = `${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${repoFullName}`;
+
+  // Dynamic QA Lead Insights Logic
+  let strategyInsight = '';
+  let statusInsight = '';
+
+  if (metrics.totalTests > 0 && metrics.passedTests === 0) {
+    strategyInsight = `<b>🚨 Suite Execution Blocked:</b> Suite terminated early in <b>${metrics.durationMinutes} minutes</b> due to cascading setup/authentication failures.`;
+    statusInsight = `<b>🔥 CRITICAL PIPELINE BLOCKER:</b> 100% of tests failed (${metrics.failedTests}/${metrics.totalTests}). Immediate investigation required on login/auth setup before re-triggering.`;
+  } else if (metrics.failedTests > 0) {
+    strategyInsight = `<b>Execution Strategy:</b> Multi-machine parallel execution completed suite in <b>${metrics.durationMinutes} minutes</b>.`;
+    statusInsight = `<b>⚠️ Regression Detected (${metrics.passRate}% Pass Rate):</b> ${metrics.failedTests} scenario(s) failed out of ${metrics.totalTests}. Inspect Allure trace logs for details.`;
+  } else {
+    strategyInsight = `<b>Execution Strategy:</b> Multi-machine parallel execution optimized suite execution down to <b>${metrics.durationMinutes} minutes</b>.`;
+    statusInsight = `<b>✅ Zero Regressions:</b> 100% pass rate achieved across all targeted application modules.`;
+  }
 
   // Build Project Breakdown Rows
   const projectRows = Object.entries(metrics.projectMap)
@@ -223,8 +239,8 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
 
   // Build Module Rows
   const moduleRows = Object.values(metrics.moduleMap)
-    .filter(m => m.scenarios.size > 0)
-    .map(m => {
+    .filter((m) => m.scenarios.size > 0)
+    .map((m) => {
       const status = m.failed === 0 ? '<span style="color: #2e7d32; font-weight: bold;">PASSED</span>' : '<span style="color: #d32f2f; font-weight: bold;">FAILED</span>';
       return `
         <tr>
@@ -291,7 +307,7 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
 
         <!-- DASHBOARD LINKS -->
         <div class="section-title">Interactive Dashboards</div>
-        <p style="font-size: 13px; margin-bottom: 12px; color: #4b5563;">Access full step-by-step traces, failure screenshots, and historical trends:</p>
+        <p style="font-size: 13px; margin-bottom: 12px; color: #4b5563;">Access step-by-step traces, failure screenshots, and multi-run historical trends:</p>
         <div>
           <a href="${allureBaseUrl}/allure-results/" class="btn" target="_blank">📊 View Latest Allure Run</a>
           <a href="${allureBaseUrl}/" class="btn btn-secondary" target="_blank">📈 View Multi-Day Trends</a>
@@ -329,17 +345,17 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
           </tbody>
         </table>
 
-        <!-- QA LEAD NOTES -->
+        <!-- QA LEAD INSIGHTS -->
         <div class="section-title">QA Lead Insights</div>
-        <ul style="font-size: 13px; color: #374151; padding-left: 18px; margin: 0;">
-          <li><b>Execution Strategy:</b> Parallel execution across cloud nodes reduced total suite duration to <b>${metrics.durationMinutes} minutes</b>.</li>
-          <li><b>Regression Status:</b> ${metrics.failedTests === 0 ? 'Zero regressions observed across core Admin and ESS workflows.' : `${metrics.failedTests} failing tests detected. Check Allure traces for root cause.`}</li>
+        <ul style="font-size: 13px; color: #374151; padding-left: 18px; margin: 0; line-height: 1.6;">
+          <li style="margin-bottom: 6px;">${strategyInsight}</li>
+          <li>${statusInsight}</li>
         </ul>
       </div>
 
       <div class="footer">
         Automated report dispatched by <b>Playwright CI/CD Pipeline</b>.<br>
-        Repository: <a href="${githubRepoUrl}" style="color: #1a237e;">${process.env.GITHUB_REPOSITORY || 'yadavdeepak/playwright-e2e'}</a>
+        Repository: <a href="${githubRepoUrl}" style="color: #1a237e;">${repoFullName}</a>
       </div>
     </div>
   </body>
@@ -364,11 +380,10 @@ async function main() {
 
   const subject = `[${overallStatus}] OrangeHRM E2E Test Summary — ${envName} (${trigger.label})`;
 
-  // Transporter configuration from environment variables
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: false, // true for 465, false for other ports
+    secure: false,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
