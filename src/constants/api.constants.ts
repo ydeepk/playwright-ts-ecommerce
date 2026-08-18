@@ -3,6 +3,9 @@ export const API_ENDPOINTS = {
     LOGIN: '/api/v1/auth/login',
     REFRESH: '/api/v1/auth/refresh',
   },
+  CREATE: {
+    NEW_EMPLOYEE: '/web/index.php/api/v2/pim/employees'
+  },
   CART: {
     GET_ITEMS: '/api/v1/cart',
     ADD_ITEM: '/api/v1/cart/items',

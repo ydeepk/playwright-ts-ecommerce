@@ -1,4 +1,5 @@
 import { APIRequestContext, expect } from "@playwright/test";
+import { API_ENDPOINTS } from "../constants";
 
 export class EmployeeClient {
   // Use Playwright's isolated request context
@@ -16,7 +17,7 @@ export class EmployeeClient {
     employeeId: string,
   ) {
     const response = await this.request.post(
-      "/web/index.php/api/v2/pim/employees",
+      API_ENDPOINTS.CREATE.NEW_EMPLOYEE,
       {
         data: {
           firstName,
@@ -37,7 +38,7 @@ export class EmployeeClient {
    */
   async getEmployeeDetails(empNumber: number) {
     const response = await this.request.get(
-      `/web/index.php/api/v2/pim/employees/${empNumber}`,
+      `${API_ENDPOINTS.CREATE.NEW_EMPLOYEE}${empNumber}`,
     );
     expect(response.ok()).toBeTruthy();
     return await response.json();
