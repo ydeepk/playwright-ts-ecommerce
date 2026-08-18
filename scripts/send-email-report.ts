@@ -2,106 +2,220 @@ import fs from 'fs';
 import nodemailer from 'nodemailer';
 import path from 'path';
 
-async function sendDailyReport() {
-  // Points directly to our consolidated test-results folder
-  const resultsPath = path.join(__dirname, '../test-results/report.json');
+interface TestSuiteStats {
+  total: number;
+  passed: number;
+  failed: number;
+  flaky: number;
+  skipped: number;
+  durationMs: number;
+}
 
-  if (!fs.existsSync(resultsPath)) {
-    console.error(`❌ Report file not found at: ${resultsPath}`);
+/**
+ * Recursively locates all report.json files within a given directory.
+ */
+function findReportFiles(dir: string): string[] {
+  let results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
+
+  const list = fs.readdirSync(dir);
+  for (const file of list) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat && stat.isDirectory()) {
+      results = results.concat(findReportFiles(filePath));
+    } else if (file === 'report.json') {
+      results.push(filePath);
+    }
+  }
+  return results;
+}
+
+/**
+ * Recursively extracts test stats from Playwright's JSON report structure.
+ */
+function extractStatsFromReport(reportData: any): TestSuiteStats {
+  let stats: TestSuiteStats = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    flaky: 0,
+    skipped: 0,
+    durationMs: 0,
+  };
+
+  // If top-level stats exist in the report structure
+  if (reportData.stats) {
+    stats.durationMs += reportData.stats.duration || 0;
+  }
+
+  function parseSuites(suites: any[]) {
+    if (!suites || !Array.isArray(suites)) return;
+
+    for (const suite of suites) {
+      if (suite.specs) {
+        for (const spec of suite.specs) {
+          stats.total++;
+          if (spec.tests && spec.tests.length > 0) {
+            const lastOutcome = spec.tests[spec.tests.length - 1].status;
+            if (spec.ok) {
+              if (spec.tests.some((t: any) => t.status === 'flaky')) {
+                stats.flaky++;
+              } else {
+                stats.passed++;
+              }
+            } else if (lastOutcome === 'skipped') {
+              stats.skipped++;
+            } else {
+              stats.failed++;
+            }
+          }
+        }
+      }
+      if (suite.suites) {
+        parseSuites(suite.suites);
+      }
+    }
+  }
+
+  if (reportData.suites) {
+    parseSuites(reportData.suites);
+  }
+
+  return stats;
+}
+
+async function sendEmailReport() {
+  const baseDir = path.join(process.cwd(), 'test-results');
+  const reportFiles = findReportFiles(baseDir);
+
+  if (reportFiles.length === 0) {
+    console.error(`❌ No report.json files found under: ${baseDir}`);
     process.exit(1);
   }
 
-  const rawData = fs.readFileSync(resultsPath, 'utf-8');
-  const results = JSON.parse(rawData);
+  console.log(`🔍 Found ${reportFiles.length} shard report file(s):`);
+  reportFiles.forEach((file) => console.log(`  - ${file}`));
 
-  // Extract Playwright execution stats
-  const stats = results.stats;
-  const passed = stats.expected || 0;
-  const flaky = stats.flaky || 0;
-  const failed = stats.unexpected || 0;
-  const skipped = stats.skipped || 0;
-  const total = passed + flaky + failed + skipped;
+  // Aggregate stats across all sharded JSON reports
+  const aggregatedStats: TestSuiteStats = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    flaky: 0,
+    skipped: 0,
+    durationMs: 0,
+  };
 
-  const durationMin = (stats.duration / 1000 / 60).toFixed(1);
-  const passRate = total > 0 ? (((passed + flaky) / total) * 100).toFixed(1) : "0.0";
+  for (const filePath of reportFiles) {
+    try {
+      const rawContent = fs.readFileSync(filePath, 'utf-8');
+      const jsonReport = JSON.parse(rawContent);
+      const shardStats = extractStatsFromReport(jsonReport);
 
-  // UI styling based on execution status
-  const statusColor = failed > 0 ? '#d9534f' : flaky > 0 ? '#f0ad4e' : '#28a745';
-  const statusBadge = failed > 0 ? 'FAILED' : flaky > 0 ? 'PASSED (WITH RETRIES)' : 'PASSED';
+      aggregatedStats.total += shardStats.total;
+      aggregatedStats.passed += shardStats.passed;
+      aggregatedStats.failed += shardStats.failed;
+      aggregatedStats.flaky += shardStats.flaky;
+      aggregatedStats.skipped += shardStats.skipped;
+      aggregatedStats.durationMs += shardStats.durationMs;
+    } catch (err) {
+      console.warn(`⚠️ Warning: Failed to parse ${filePath}:`, err);
+    }
+  }
 
-  const envName = process.env.TEST_ENV || "QA-Staging";
-  const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+  const passRate =
+    aggregatedStats.total > 0
+      ? ((aggregatedStats.passed / aggregatedStats.total) * 100).toFixed(1)
+      : '0.0';
 
-  // Build HTML Email Body
+  const durationMin = (aggregatedStats.durationMs / 1000 / 60).toFixed(2);
+  const environment = process.env.TEST_ENV || 'QA-Staging';
+  const statusColor = aggregatedStats.failed > 0 ? '#d9534f' : '#5cb85c';
+  const statusText = aggregatedStats.failed > 0 ? 'FAILED' : 'PASSED';
+
+  console.log('\n📊 Aggregated Results Summary:');
+  console.log(`   Environment: ${environment}`);
+  console.log(`   Total Tests: ${aggregatedStats.total}`);
+  console.log(`   Passed:      ${aggregatedStats.passed}`);
+  console.log(`   Failed:      ${aggregatedStats.failed}`);
+  console.log(`   Skipped:     ${aggregatedStats.skipped}`);
+  console.log(`   Pass Rate:   ${passRate}%`);
+  console.log(`   Duration:    ${durationMin} mins\n`);
+
+  // Email Config
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const recipients = process.env.EMAIL_STAKEHOLDERS;
+
+  if (!user || !pass || !recipients) {
+    console.error('❌ Missing required SMTP environment variables (SMTP_USER, SMTP_PASS, EMAIL_STAKEHOLDERS).');
+    process.exit(1);
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
   const htmlBody = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #24292e; line-height: 1.5; }
-        .container { max-width: 650px; margin: 0 auto; border: 1px solid #e1e4e8; border-radius: 6px; overflow: hidden; }
-        .header { background-color: ${statusColor}; color: white; padding: 16px 20px; font-size: 18px; font-weight: bold; }
-        .content { padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e1e4e8; }
-        th { background-color: #f6f8fa; font-size: 13px; color: #586069; }
-        .btn { display: inline-block; background-color: #0366d6; color: #ffffff !important; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          [Automation Update] Playwright Suite &mdash; ${statusBadge} (${passRate}%)
-        </div>
-        <div class="content">
-          <p>Hi Team,</p>
-          <p>Here is the automated daily execution report for our Playwright test suite running against <strong>${envName}</strong>.</p>
-
-          <h3>📊 Execution Metrics</h3>
-          <table>
-            <tr><th>Metric</th><th>Value</th></tr>
-            <tr><td>Total Executed</td><td><strong>${total}</strong></td></tr>
-            <tr><td>Passed (Direct)</td><td><span style="color: #28a745; font-weight: bold;">${passed}</span></td></tr>
-            <tr><td>Flaky (Passed on Retry)</td><td><span style="color: #f0ad4e; font-weight: bold;">${flaky}</span></td></tr>
-            <tr><td>Failed</td><td><span style="color: #d9534f; font-weight: bold;">${failed}</span></td></tr>
-            <tr><td>Execution Duration</td><td>${durationMin} minutes</td></tr>
-          </table>
-
-          <p style="margin-top: 20px;">
-            <a href="${runUrl}" class="btn">View CI Execution Logs & Artifacts</a>
-          </p>
-
-          <p style="margin-top: 25px; font-size: 12px; color: #6a737d;">
-            Generated automatically by KozonHQ Playwright Framework
-          </p>
-        </div>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+      <div style="background-color: ${statusColor}; color: white; padding: 16px; text-align: center;">
+        <h2 style="margin: 0;">Playwright E2E Execution - ${statusText}</h2>
+        <p style="margin: 4px 0 0 0; font-size: 14px;">Environment: <strong>${environment}</strong></p>
       </div>
-    </body>
-    </html>
+      <div style="padding: 20px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>Total Tests:</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${aggregatedStats.total}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #5cb85c;"><strong>Passed:</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; color: #5cb85c;">${aggregatedStats.passed}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #d9534f;"><strong>Failed:</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; color: #d9534f;">${aggregatedStats.failed}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #f0ad4e;"><strong>Skipped:</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; color: #f0ad4e;">${aggregatedStats.skipped}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>Pass Rate:</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;"><strong>${passRate}%</strong></td>
+          </tr>
+          <tr>
+            <td style="padding: 10px;"><strong>Execution Duration:</strong></td>
+            <td style="padding: 10px; text-align: right;">${durationMin} mins</td>
+          </tr>
+        </table>
+        <p style="font-size: 12px; color: #888; text-align: center; margin-top: 20px;">
+          Report generated across ${reportFiles.length} execution shard(s).
+        </p>
+      </div>
+    </div>
   `;
 
-  // Configure Nodemailer Transporter
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  await transporter.sendMail({
-    from: `"QA Automation Bot" <${process.env.SMTP_USER}>`,
-    to: process.env.EMAIL_STAKEHOLDERS,
-    subject: `[Automation Status] ${envName} | ${statusBadge} (${passRate}%)`,
+  const mailOptions = {
+    from: `"Automation QA Team" <${user}>`,
+    to: recipients,
+    subject: `[${statusText}] Playwright Test Execution Summary - ${environment}`,
     html: htmlBody,
-  });
+  };
 
-  console.log('✅ Daily Automation Email sent successfully!');
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully! Message ID: ${info.messageId}`);
+  } catch (error) {
+    console.error('❌ Failed to send email report:', error);
+    process.exit(1);
+  }
 }
 
-sendDailyReport().catch((err) => {
-  console.error('❌ Failed to send email report:', err);
-  process.exit(1);
-});
+sendEmailReport();
