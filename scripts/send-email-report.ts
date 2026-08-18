@@ -49,6 +49,7 @@ interface ModuleSummary {
   scenarios: Set<string>;
   passed: number;
   failed: number;
+  skipped: number;
 }
 
 // ==============================================================================
@@ -82,10 +83,10 @@ function parseReports(resultsDir: string) {
 
   const projectMap: Record<string, ProjectMetrics> = {};
   const moduleMap: Record<string, ModuleSummary> = {
-    Authentication: { name: 'Authentication & Access Security', scenarios: new Set(), passed: 0, failed: 0 },
-    Admin: { name: 'Admin Portal & System User Management', scenarios: new Set(), passed: 0, failed: 0 },
-    ESS: { name: 'Employee Self Service (ESS) & Profile', scenarios: new Set(), passed: 0, failed: 0 },
-    Core: { name: 'Core Workflows & Navigation', scenarios: new Set(), passed: 0, failed: 0 },
+    Authentication: { name: 'Authentication & Access Security', scenarios: new Set(), passed: 0, failed: 0, skipped: 0 },
+    Admin: { name: 'Admin Portal & System User Management', scenarios: new Set(), passed: 0, failed: 0, skipped: 0 },
+    ESS: { name: 'Employee Self Service (ESS) & Profile', scenarios: new Set(), passed: 0, failed: 0, skipped: 0 },
+    Core: { name: 'Core Workflows & Navigation', scenarios: new Set(), passed: 0, failed: 0, skipped: 0 },
   };
 
   jsonFiles.forEach((file) => {
@@ -133,6 +134,7 @@ function parseReports(resultsDir: string) {
               } else if (isSkip) {
                 skippedTests++;
                 projectMap[proj].skipped++;
+                moduleMap[targetModuleKey].skipped++;
               }
             });
           });
@@ -151,7 +153,8 @@ function parseReports(resultsDir: string) {
     }
   });
 
-  const passRate = totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(1) : '0.0';
+  const passRateNum = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+  const passRate = passRateNum.toFixed(1);
   const durationMinutes = (totalDurationMs / 60000).toFixed(2);
 
   return {
@@ -159,6 +162,7 @@ function parseReports(resultsDir: string) {
     passedTests,
     failedTests,
     skippedTests,
+    passRateNum,
     passRate,
     durationMinutes,
     projectMap,
@@ -167,7 +171,7 @@ function parseReports(resultsDir: string) {
 }
 
 // ==============================================================================
-// 2. CONTEXT & TRIGGER RESOLUTION
+// 2. CONTEXT & DYNAMIC QA LEAD INSIGHTS ENGINE
 // ==============================================================================
 function getExecutionTrigger(): { label: string; description: string } {
   const eventName = process.env.GITHUB_EVENT_NAME || 'workflow_dispatch';
@@ -190,15 +194,76 @@ function getBrowserFriendlyName(projName: string): string {
   return projName;
 }
 
+/**
+ * Enterprise QA Lead Insight Engine
+ * Dynamically builds context-aware recommendations based on complex suite execution states
+ */
+function generateQaLeadInsights(metrics: ReturnType<typeof parseReports>): string[] {
+  const insights: string[] = [];
+  const { totalTests, passedTests, failedTests, skippedTests, passRateNum, durationMinutes, moduleMap } = metrics;
+
+  // 1. Suite Scale & Execution Context
+  const scaleText = totalTests >= 150 ? 'Full Mass Regression' : totalTests >= 50 ? 'Standard Regression' : 'Targeted Smoke/Sanity';
+
+  // 2. Analyze Affected Modules
+  const failedModules = Object.values(moduleMap)
+    .filter((m) => m.failed > 0)
+    .map((m) => m.name);
+
+  // 3. Scenario Matrix Conditions
+  if (totalTests === 0) {
+    insights.push(`<b>🚨 NO TEST ARTIFACTS FOUND:</b> Pipeline completed without generating test results. Verify artifact paths and Playwright execution logs.`);
+    return insights;
+  }
+
+  // CONDITION A: 100% Failure / Blocker / Environment Outage
+  if (passedTests === 0 && failedTests > 0) {
+    insights.push(`<b>🚨 CRITICAL ENVIRONMENT / SETUP BLOCKER:</b> 100% of tests failed (${failedTests}/${totalTests}). Indicates server downtime, broken deployment, or global authentication setup failure.`);
+    insights.push(`<b>🛑 IMMEDIATE ACTION:</b> Do not re-run suite until base environment connectivity and admin credentials are verified.`);
+  }
+  // CONDITION B: High Regression Rate (>30% failure rate or >30 failures in 200+ suite)
+  else if (passRateNum < 70) {
+    insights.push(`<b>🔥 SEVERE REGRESSION DETECTED (${scaleText}):</b> ${failedTests} failing tests out of ${totalTests} (${(100 - passRateNum).toFixed(1)}% failure rate). High defect density across multiple components.`);
+    if (failedModules.length > 0) {
+      insights.push(`<b>📍 IMPACTED MODULES:</b> Failures concentrated in <b>${failedModules.join(', ')}</b>.`);
+    }
+  }
+  // CONDITION C: Moderate Regressions / Targeted Defects
+  else if (failedTests > 0) {
+    insights.push(`<b>⚠️ TARGETED REGRESSIONS (${metrics.passRate}% Pass Rate):</b> Multi-node parallel execution completed in <b>${durationMinutes} mins</b> with ${failedTests} failed scenario(s).`);
+    if (failedModules.length > 0) {
+      insights.push(`<b>📍 IMPACTED MODULES:</b> Defect scope isolated to <b>${failedModules.join(', ')}</b>.`);
+    }
+    insights.push(`<b>🔍 RECOMMENDATION:</b> Review Allure trace viewer for DOM snapshots, network payloads, and console logs before PR merge.`);
+  }
+  // CONDITION D: 100% Pass Rate / Green Build
+  else {
+    insights.push(`<b>✅ STABLE GREEN BUILD (${scaleText}):</b> 100% pass rate achieved across ${totalTests} total test scenarios.`);
+    insights.push(`<b>⚡ PERFORMANCE:</b> Multi-machine parallel runner optimized total suite runtime down to <b>${durationMinutes} minutes</b>.`);
+    insights.push(`<b>🚀 DEPLOYMENT CLEARED:</b> Zero regressions detected in core functional modules. Cleared from QA perspective.`);
+  }
+
+  // 4. Skipped / Timed Out Warnings
+  if (skippedTests > 0) {
+    insights.push(`<b>⏭️ SKIPPED TESTS:</b> ${skippedTests} test(s) skipped due to setup dependencies or active test flags.`);
+  }
+
+  return insights;
+}
+
 // ==============================================================================
-// 3. HTML EMAIL TEMPLATE BUILDER
+// 3. GOOGLE MODERN / ALLURE HYBRID HTML EMAIL BUILDER
 // ==============================================================================
 function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
   const envName = process.env.TEST_ENV || 'QA-Staging';
   const trigger = getExecutionTrigger();
-  const overallStatus = metrics.failedTests === 0 && metrics.totalTests > 0 ? 'PASSED' : 'FAILED';
-  const statusColor = overallStatus === 'PASSED' ? '#2e7d32' : '#d32f2f';
-  const statusBg = overallStatus === 'PASSED' ? '#e8f5e9' : '#ffebee';
+  
+  // Status Colors (Google Material Design Palette)
+  const isPass = metrics.failedTests === 0 && metrics.totalTests > 0;
+  const overallStatus = isPass ? 'PASSED' : metrics.passedTests === 0 ? 'CRITICAL BLOCKER' : 'REGRESSION DETECTED';
+  const headerBg = isPass ? '#1e8e3e' : metrics.passedTests === 0 ? '#d93025' : '#f9ab00';
+  const badgeBg = isPass ? '#e6f4ea' : metrics.passedTests === 0 ? '#fce8e6' : '#fef7e0';
+  const badgeTextColor = isPass ? '#137333' : metrics.passedTests === 0 ? '#c5221f' : '#b06000';
 
   // Dynamic GitHub Pages & Repository URL Resolution
   const repoFullName = process.env.GITHUB_REPOSITORY || 'ydeepk/playwright-ts-ecommerce';
@@ -207,119 +272,156 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
   const allureBaseUrl = `https://${repoOwner}.github.io/${repoName}`;
   const githubRepoUrl = `${process.env.GITHUB_SERVER_URL || 'https://github.com'}/${repoFullName}`;
 
-  // Dynamic QA Lead Insights Logic
-  let strategyInsight = '';
-  let statusInsight = '';
+  const insightsList = generateQaLeadInsights(metrics)
+    .map((item) => `<li style="margin-bottom: 8px; color: #3c4043; font-size: 13px; line-height: 1.5;">${item}</li>`)
+    .join('');
 
-  if (metrics.totalTests > 0 && metrics.passedTests === 0) {
-    strategyInsight = `<b>🚨 Suite Execution Blocked:</b> Suite terminated early in <b>${metrics.durationMinutes} minutes</b> due to cascading setup/authentication failures.`;
-    statusInsight = `<b>🔥 CRITICAL PIPELINE BLOCKER:</b> 100% of tests failed (${metrics.failedTests}/${metrics.totalTests}). Immediate investigation required on login/auth setup before re-triggering.`;
-  } else if (metrics.failedTests > 0) {
-    strategyInsight = `<b>Execution Strategy:</b> Multi-machine parallel execution completed suite in <b>${metrics.durationMinutes} minutes</b>.`;
-    statusInsight = `<b>⚠️ Regression Detected (${metrics.passRate}% Pass Rate):</b> ${metrics.failedTests} scenario(s) failed out of ${metrics.totalTests}. Inspect Allure trace logs for details.`;
-  } else {
-    strategyInsight = `<b>Execution Strategy:</b> Multi-machine parallel execution optimized suite execution down to <b>${metrics.durationMinutes} minutes</b>.`;
-    statusInsight = `<b>✅ Zero Regressions:</b> 100% pass rate achieved across all targeted application modules.`;
-  }
-
-  // Build Project Breakdown Rows
+  // Project Breakdown Rows
   const projectRows = Object.entries(metrics.projectMap)
     .map(([proj, stats]) => {
       const rate = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(0) : '0';
+      const failColor = stats.failed > 0 ? '#d93025' : '#5f6368';
       return `
         <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><b>${getBrowserFriendlyName(proj)}</b> (<code>${proj}</code>)</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${stats.total}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2e7d32; font-weight: bold;">${stats.passed}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: ${stats.failed > 0 ? '#d32f2f' : '#757575'}; font-weight: bold;">${stats.failed}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${rate}%</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; font-size: 13px; color: #202124;">
+            <b>${getBrowserFriendlyName(proj)}</b> <span style="font-size: 11px; color: #70757a;">(${proj})</span>
+          </td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #202124;">${stats.total}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #1e8e3e; font-weight: 600;">${stats.passed}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: ${failColor}; font-weight: 600;">${stats.failed}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #5f6368;">${stats.skipped}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; font-weight: 600; color: #202124;">${rate}%</td>
         </tr>`;
     })
     .join('');
 
-  // Build Module Rows
+  // Module Breakdown Rows
   const moduleRows = Object.values(metrics.moduleMap)
     .filter((m) => m.scenarios.size > 0)
     .map((m) => {
-      const status = m.failed === 0 ? '<span style="color: #2e7d32; font-weight: bold;">PASSED</span>' : '<span style="color: #d32f2f; font-weight: bold;">FAILED</span>';
+      const statusPill = m.failed === 0 
+        ? '<span style="background-color: #e6f4ea; color: #137333; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">PASSED</span>' 
+        : '<span style="background-color: #fce8e6; color: #c5221f; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">FAILED</span>';
       return `
         <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><b>${m.name}</b></td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${Array.from(m.scenarios).slice(0, 3).join(', ')}${m.scenarios.size > 3 ? '...' : ''}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${status}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; font-size: 13px; color: #202124;"><b>${m.name}</b></td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; font-size: 12px; color: #5f6368;">${Array.from(m.scenarios).slice(0, 3).join(', ')}${m.scenarios.size > 3 ? '...' : ''}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center;">${statusPill}</td>
         </tr>`;
     })
     .join('');
 
   return `
   <!DOCTYPE html>
-  <html>
+  <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrangeHRM Automation Execution Report</title>
     <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333333; background-color: #f4f6f8; margin: 0; padding: 20px; }
-      .container { max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; }
-      .header { background: #1a237e; color: #ffffff; padding: 24px; text-align: left; }
-      .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-      .header p { margin: 4px 0 0 0; font-size: 13px; opacity: 0.85; }
-      .badge { display: inline-block; padding: 6px 14px; font-weight: bold; border-radius: 20px; font-size: 13px; background-color: ${statusBg}; color: ${statusColor}; margin-top: 10px; }
-      .content { padding: 24px; }
-      .section-title { font-size: 15px; font-weight: 700; color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 6px; margin-top: 24px; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
-      .metrics-grid { display: table; width: 100%; table-layout: fixed; margin-bottom: 15px; }
-      .metric-card { display: table-cell; background: #f8f9fa; padding: 12px; text-align: center; border-radius: 6px; border: 1px solid #e9ecef; }
-      .metric-value { font-size: 20px; font-weight: bold; color: #111827; }
-      .metric-label { font-size: 11px; color: #6b7280; text-transform: uppercase; margin-top: 2px; }
-      table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-      th { background-color: #f3f4f6; color: #374151; font-weight: 600; text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; }
-      .btn { display: inline-block; padding: 10px 18px; background-color: #1a237e; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 13px; margin-right: 10px; margin-bottom: 10px; }
-      .btn-secondary { background-color: #4b5563; }
-      .footer { background-color: #f9fafb; padding: 16px 24px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+      body { font-family: 'Google Sans', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif; background-color: #f8f9fa; color: #202124; margin: 0; padding: 16px; -webkit-font-smoothing: antialiased; }
+      .wrapper { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dadce0; box-shadow: 0 1px 3px rgba(60,64,67,0.08); }
+      .top-bar { height: 6px; background-color: ${headerBg}; }
+      .header { padding: 24px 24px 16px 24px; border-bottom: 1px solid #f1f3f4; }
+      .header-title { font-size: 20px; font-weight: 600; color: #202124; margin: 0 0 6px 0; letter-spacing: -0.2px; }
+      .header-meta { font-size: 13px; color: #5f6368; margin: 0; }
+      .badge { display: inline-block; padding: 6px 14px; font-weight: 600; border-radius: 16px; font-size: 12px; background-color: ${badgeBg}; color: ${badgeTextColor}; margin-top: 12px; letter-spacing: 0.3px; }
+      
+      .content { padding: 20px 24px; }
+      
+      /* Google Stat Cards Grid */
+      .card-grid { display: table; width: 100%; table-layout: fixed; margin-bottom: 20px; }
+      .card { display: table-cell; background: #f8f9fa; padding: 14px 8px; text-align: center; border-radius: 8px; border: 1px solid #e8eaed; }
+      .card-val { font-size: 22px; font-weight: 700; color: #202124; }
+      .card-lbl { font-size: 10px; color: #70757a; text-transform: uppercase; font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; }
+
+      .section-header { font-size: 13px; font-weight: 700; color: #1a73e8; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 24px; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid #e8f0fe; }
+
+      table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+      th { background-color: #f8f9fa; color: #5f6368; font-weight: 600; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #dadce0; }
+
+      .btn-container { margin: 16px 0; }
+      .btn-primary { display: inline-block; padding: 10px 20px; background-color: #1a73e8; color: #ffffff !important; text-decoration: none; border-radius: 20px; font-weight: 500; font-size: 13px; box-shadow: 0 1px 2px rgba(60,64,67,0.3); margin-right: 8px; margin-bottom: 8px; }
+      .btn-secondary { display: inline-block; padding: 10px 20px; background-color: #ffffff; color: #1a73e8 !important; text-decoration: none; border-radius: 20px; font-weight: 500; font-size: 13px; border: 1px solid #dadce0; margin-bottom: 8px; }
+
+      /* QA Insights Callout Box */
+      .insights-box { background-color: #f8f9fa; border-left: 4px solid #1a73e8; padding: 16px 16px 8px 16px; border-radius: 0 8px 8px 0; margin-top: 8px; }
+
+      /* Footer & Signature */
+      .footer { background-color: #f8f9fa; padding: 20px 24px; border-top: 1px solid #f1f3f4; font-size: 12px; color: #5f6368; }
+      .signature { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e8eaed; }
+      .signature-name { font-weight: 600; color: #202124; font-size: 13px; margin: 0; }
+      .signature-title { color: #5f6368; font-size: 12px; margin: 2px 0 0 0; }
+
+      /* Mobile Screen Adjustments */
+      @media only screen and (max-width: 600px) {
+        body { padding: 8px; }
+        .wrapper { border-radius: 8px; }
+        .header, .content, .footer { padding: 16px; }
+        .card-grid { display: block; }
+        .card { display: block; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+        .btn-primary, .btn-secondary { display: block; text-align: center; margin-right: 0; }
+      }
     </style>
   </head>
   <body>
-    <div class="container">
+    <div class="wrapper">
+      <div class="top-bar"></div>
+      
       <div class="header">
-        <h1>OrangeHRM E2E Automation Report</h1>
-        <p>Environment: <b>${envName}</b> | Trigger: <b>${trigger.description}</b></p>
-        <div class="badge">STATUS: ${overallStatus} (${metrics.passRate}% Pass Rate)</div>
+        <h1 class="header-title">OrangeHRM E2E Automation Report</h1>
+        <p class="header-meta">Environment: <b>${envName}</b> &nbsp;|&nbsp; Trigger: <b>${trigger.description}</b></p>
+        <div class="badge">${overallStatus} — ${metrics.passRate}% Pass Rate</div>
       </div>
 
       <div class="content">
-        <!-- METRICS CARDS -->
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-value">${metrics.totalTests}</div>
-            <div class="metric-label">Total Tests</div>
+        <!-- STATS CARDS -->
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-val">${metrics.totalTests}</div>
+            <div class="card-lbl">Total Tests</div>
           </div>
-          <div class="metric-card" style="margin-left: 8px;">
-            <div class="metric-value" style="color: #2e7d32;">${metrics.passedTests}</div>
-            <div class="metric-label">Passed</div>
+          <div class="card" style="margin-left: 6px;">
+            <div class="card-val" style="color: #1e8e3e;">${metrics.passedTests}</div>
+            <div class="card-lbl">Passed</div>
           </div>
-          <div class="metric-card" style="margin-left: 8px;">
-            <div class="metric-value" style="color: ${metrics.failedTests > 0 ? '#d32f2f' : '#111827'};">${metrics.failedTests}</div>
-            <div class="metric-label">Failed</div>
+          <div class="card" style="margin-left: 6px;">
+            <div class="card-val" style="color: ${metrics.failedTests > 0 ? '#d93025' : '#202124'};">${metrics.failedTests}</div>
+            <div class="card-lbl">Failed</div>
           </div>
-          <div class="metric-card" style="margin-left: 8px;">
-            <div class="metric-value">${metrics.durationMinutes}m</div>
-            <div class="metric-label">Duration</div>
+          <div class="card" style="margin-left: 6px;">
+            <div class="card-val" style="color: #5f6368;">${metrics.skippedTests}</div>
+            <div class="card-lbl">Skipped</div>
+          </div>
+          <div class="card" style="margin-left: 6px;">
+            <div class="card-val">${metrics.durationMinutes}m</div>
+            <div class="card-lbl">Duration</div>
           </div>
         </div>
 
-        <!-- DASHBOARD LINKS -->
-        <div class="section-title">Interactive Dashboards</div>
-        <p style="font-size: 13px; margin-bottom: 12px; color: #4b5563;">Access step-by-step traces, failure screenshots, and multi-run historical trends:</p>
-        <div>
-          <a href="${allureBaseUrl}/allure-results/" class="btn" target="_blank">📊 View Latest Allure Run</a>
-          <a href="${allureBaseUrl}/" class="btn btn-secondary" target="_blank">📈 View Multi-Day Trends</a>
+        <!-- DASHBOARD BUTTONS -->
+        <div class="section-header">Allure & Trace Dashboards</div>
+        <p style="font-size: 13px; color: #5f6368; margin: 0 0 12px 0;">Access interactive Allure report, video recordings, and step-by-step trace viewer logs:</p>
+        <div class="btn-container">
+          <a href="${allureBaseUrl}/allure-results/" class="btn-primary" target="_blank">📊 View Allure Test Report</a>
+          <a href="${allureBaseUrl}/" class="btn-secondary" target="_blank">📈 Historical Trends</a>
         </div>
 
-        <!-- MODULES TESTED -->
-        <div class="section-title">Application Modules Tested</div>
+        <!-- QA LEAD INSIGHTS -->
+        <div class="section-header">QA Lead Insights</div>
+        <div class="insights-box">
+          <ul style="margin: 0; padding-left: 18px;">
+            ${insightsList}
+          </ul>
+        </div>
+
+        <!-- APPLICATION MODULES -->
+        <div class="section-header">Functional Modules Coverage</div>
         <table>
           <thead>
             <tr>
-              <th>Functional Module</th>
-              <th>Scenarios Covered</th>
+              <th>Module Name</th>
+              <th>Scenarios</th>
               <th style="text-align: center;">Status</th>
             </tr>
           </thead>
@@ -329,14 +431,15 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
         </table>
 
         <!-- BROWSER COVERAGE -->
-        <div class="section-title">Browser & Platform Coverage</div>
+        <div class="section-header">Browser Platform Matrix</div>
         <table>
           <thead>
             <tr>
               <th>Browser / Engine</th>
               <th style="text-align: center;">Total</th>
-              <th style="text-align: center;">Passed</th>
-              <th style="text-align: center;">Failed</th>
+              <th style="text-align: center;">Pass</th>
+              <th style="text-align: center;">Fail</th>
+              <th style="text-align: center;">Skip</th>
               <th style="text-align: center;">Pass Rate</th>
             </tr>
           </thead>
@@ -344,18 +447,17 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
             ${projectRows}
           </tbody>
         </table>
-
-        <!-- QA LEAD INSIGHTS -->
-        <div class="section-title">QA Lead Insights</div>
-        <ul style="font-size: 13px; color: #374151; padding-left: 18px; margin: 0; line-height: 1.6;">
-          <li style="margin-bottom: 6px;">${strategyInsight}</li>
-          <li>${statusInsight}</li>
-        </ul>
       </div>
 
+      <!-- FOOTER & SIGNATURE -->
       <div class="footer">
-        Automated report dispatched by <b>Playwright CI/CD Pipeline</b>.<br>
-        Repository: <a href="${githubRepoUrl}" style="color: #1a237e;">${repoFullName}</a>
+        Automated report generated by <b>Playwright CI/CD Pipeline</b>.<br>
+        Repository: <a href="${githubRepoUrl}" style="color: #1a73e8; text-decoration: none;">${repoFullName}</a>
+        
+        <div class="signature">
+          <p class="signature-name">Deepak Yadav</p>
+          <p class="signature-title">QA Lead, Automation Team</p>
+        </div>
       </div>
     </div>
   </body>
@@ -376,7 +478,7 @@ async function main() {
   const htmlContent = buildHtmlReport(metrics);
   const trigger = getExecutionTrigger();
   const envName = process.env.TEST_ENV || 'QA-Staging';
-  const overallStatus = metrics.failedTests === 0 && metrics.totalTests > 0 ? 'PASSED' : 'FAILED';
+  const overallStatus = metrics.failedTests === 0 && metrics.totalTests > 0 ? 'PASSED' : metrics.passedTests === 0 ? 'BLOCKED' : 'FAILED';
 
   const subject = `[${overallStatus}] OrangeHRM E2E Test Summary — ${envName} (${trigger.label})`;
 
@@ -392,16 +494,16 @@ async function main() {
 
   const recipients = process.env.EMAIL_STAKEHOLDERS || 'yadavdeepak@outlook.com,kozonhq@gmail.com';
 
-  console.log(`✉️ Sending email to: ${recipients}...`);
+  console.log(`✉️ Sending email report from Deepak Yadav (QA Lead) to: ${recipients}...`);
 
   await transporter.sendMail({
-    from: `"Automation QA Team" <${process.env.SMTP_USER}>`,
+    from: `"Deepak Yadav (QA Lead, Automation Team)" <${process.env.SMTP_USER}>`,
     to: recipients,
     subject: subject,
     html: htmlContent,
   });
 
-  console.log('✅ Email report successfully sent!');
+  console.log('✅ Google Modern email report successfully sent!');
 }
 
 main().catch((err) => {
