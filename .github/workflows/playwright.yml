@@ -55,25 +55,32 @@ jobs:
         shardTotal: [2]
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
       # Cache Playwright browser binaries to accelerate setup across workflow runs
-      - uses: actions/cache@v5
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - run: npx playwright install --with-deps
+      - name: Install Playwright Browsers & Dependencies
+        run: npx playwright install --with-deps
 
-      - name: Clean Allure Results
-        run: rm -rf allure-results && mkdir allure-results
+      - name: Clean Test Results Directories
+        run: |
+          rm -rf allure-results test-results 
+          mkdir -p allure-results test-results
 
       - name: Run Smoke Tests
         env:
@@ -81,7 +88,6 @@ jobs:
           ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
           ESS_USER: ${{ secrets.ESS_USER }}
           ESS_PASS: ${{ secrets.ESS_PASS }}
-
         run: |
           npx playwright test --retries=1 \
           --project=smoke-chromium \
@@ -95,26 +101,28 @@ jobs:
           cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
+        if: always()
         run: |
           if [ ! -d "allure-results" ]; then
-            echo "Allure results missing - failing job"
-            exit 1
+            echo "::warning::Allure results directory missing."
           fi
 
       # Upload raw Allure XML/JSON data for downstream aggregation in merge-report
-      - uses: actions/upload-artifact@v5
+      - name: Upload Raw Allure Results Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke-allure-${{ matrix.shardIndex }}
           path: allure-results/
           retention-days: 60
 
-      # Upload native Playwright HTML report artifacts for direct log debugging
-      - uses: actions/upload-artifact@v5
+      # Upload native Playwright JSON report artifacts for email reporting & log debugging
+      - name: Upload Playwright JSON Report Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-smoke-${{ matrix.shardIndex }}
-          path: playwright-report/
+          name: playwright-json-smoke-${{ matrix.shardIndex }}
+          path: test-results/report.json
           retention-days: 60
 
   # ============================================================================
@@ -133,24 +141,31 @@ jobs:
         shardTotal: [3]
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
-      - uses: actions/cache@v5
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - run: npx playwright install --with-deps
+      - name: Install Playwright Browsers & Dependencies
+        run: npx playwright install --with-deps
 
-      - name: Clean Allure Results
-        run: rm -rf allure-results && mkdir allure-results
+      - name: Clean Test Results Directories
+        run: |
+          rm -rf allure-results test-results 
+          mkdir -p allure-results test-results
 
       - name: Run Regression Tests
         env:
@@ -158,7 +173,6 @@ jobs:
           ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
           ESS_USER: ${{ secrets.ESS_USER }}
           ESS_PASS: ${{ secrets.ESS_PASS }}
-
         run: |
           npx playwright test --retries=1 \
           --project=regression-chromium \
@@ -168,27 +182,31 @@ jobs:
 
       - name: Copy Allure Categories
         if: always()
-        run: cp data/issue-categories.json allure-results/ || true
+        run: |
+          mkdir -p allure-results
+          cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
+        if: always()
         run: |
           if [ ! -d "allure-results" ]; then
-            echo "Allure results missing - failing job"
-            exit 1
+            echo "::warning::Allure results directory missing."
           fi
 
-      - uses: actions/upload-artifact@v5
+      - name: Upload Raw Allure Results Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: regression-allure-${{ matrix.shardIndex }}
           path: allure-results/
           retention-days: 60
 
-      - uses: actions/upload-artifact@v5
+      - name: Upload Playwright JSON Report Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-regression-${{ matrix.shardIndex }}
-          path: playwright-report/
+          name: playwright-json-regression-${{ matrix.shardIndex }}
+          path: test-results/report.json
           retention-days: 60
 
   # ============================================================================
@@ -207,24 +225,31 @@ jobs:
         shardTotal: [4]
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
-      - uses: actions/cache@v5
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - run: npx playwright install --with-deps
+      - name: Install Playwright Browsers & Dependencies
+        run: npx playwright install --with-deps
 
-      - name: Clean Allure Results
-        run: rm -rf allure-results && mkdir allure-results
+      - name: Clean Test Results Directories
+        run: |
+          rm -rf allure-results test-results 
+          mkdir -p allure-results test-results
 
       - name: Run Full Suite
         env:
@@ -232,40 +257,43 @@ jobs:
           ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
           ESS_USER: ${{ secrets.ESS_USER }}
           ESS_PASS: ${{ secrets.ESS_PASS }}
-          
         run: |
           npx playwright test --retries=1 \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Copy Allure Categories
         if: always()
-        run: cp data/issue-categories.json allure-results/ || true
+        run: |
+          mkdir -p allure-results
+          cp data/issue-categories.json allure-results/ || true
 
       - name: Validate Allure Results Before Upload
+        if: always()
         run: |
           if [ ! -d "allure-results" ]; then
-            echo "Allure results missing - failing job"
-            exit 1
+            echo "::warning::Allure results directory missing."
           fi
 
-      - uses: actions/upload-artifact@v5
+      - name: Upload Raw Allure Results Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: nightly-allure-${{ matrix.shardIndex }}
           path: allure-results/
           retention-days: 60
 
-      - uses: actions/upload-artifact@v5
+      - name: Upload Playwright JSON Report Artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-nightly-${{ matrix.shardIndex }}
-          path: playwright-report/
+          name: playwright-json-nightly-${{ matrix.shardIndex }}
+          path: test-results/report.json
           retention-days: 60
 
   # ============================================================================
   # JOB 4: REPORT CONSOLIDATION & PUBLISHING
   # Merges raw results across shards and deploys live Allure Dashboard to gh-pages.
-  # acts as the single source of truth for deployments to eliminate race conditions.
+  # Acts as the single source of truth for deployments to eliminate race conditions.
   # ============================================================================
   merge-report:
     runs-on: ubuntu-latest
@@ -291,11 +319,12 @@ jobs:
       pages: write
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       # Wildcard pattern matches results regardless of which stage ran (smoke/regression/nightly)
-      - name: Download all results
-        uses: actions/download-artifact@v5
+      - name: Download Raw Allure Results
+        uses: actions/download-artifact@v4
         with:
           pattern: "*-allure-*"
           path: all-results
@@ -334,15 +363,27 @@ jobs:
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
 
-# ============================================================================
+  # ============================================================================
   # JOB 5: EMAIL NOTIFICATION DISPATCH
-  # Downloads merged report metrics and dispatches HTML email via TypeScript script
+  # Downloads merged JSON report metrics and dispatches HTML email via TypeScript script
   # ============================================================================
   send-email-notification:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [merge-report]
-    if: always()
+    needs:
+      - merge-report
+      - smoke-tests
+      - regression-tests
+      - nightly-tests
+    if: >
+      always() &&
+      !cancelled() &&
+      github.event_name != 'pull_request' &&
+      (
+        needs.smoke-tests.result != 'skipped' ||
+        needs.regression-tests.result != 'skipped' ||
+        needs.nightly-tests.result != 'skipped'
+      )
 
     steps:
       - name: Checkout Code
@@ -351,26 +392,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Download Playwright JSON Report Artifact
-        uses: actions/download-artifact@v5
+      - name: Download Playwright JSON Report Artifacts
+        uses: actions/download-artifact@v4
         with:
-          pattern: "playwright-report-*"
-          path: playwright-report
-          merge-multiple: true
+          pattern: "playwright-json-*"
+          path: test-results
 
       - name: Send Email Report
-        if: github.event_name != 'pull_request'
         env:
-          TEST_ENV: 'QA-Staging'
-          SMTP_HOST: 'smtp.gmail.com'
-          SMTP_PORT: '587'
+          TEST_ENV: "QA-Staging"
+          SMTP_HOST: "smtp.gmail.com"
+          SMTP_PORT: "587"
           SMTP_USER: ${{ secrets.MAIL_USERNAME }}
           SMTP_PASS: ${{ secrets.MAIL_PASSWORD }}
-          EMAIL_STAKEHOLDERS: 'yadavdeepak@outlook.com,kozonhq@gmail.com'
+          EMAIL_STAKEHOLDERS: "yadavdeepak@outlook.com,kozonhq@gmail.com"
         run: npx tsx scripts/send-email-report.ts

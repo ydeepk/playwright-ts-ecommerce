@@ -20,7 +20,7 @@ test.describe('PIM Security & Data Masking', () => {
     await test.step('Admin: Create employee record with sensitive SSN data', async () => {
       const { pimPage, page } = await createPageForRole('admin');
 
-      await pimPage.navigate();
+      await pimPage.navigateToEmployeeList();
       generatedId = await pimPage.addNewEmployee(firstName, lastName);
       
       await pimPage.navigateToEmployeeDetails(generatedId);
