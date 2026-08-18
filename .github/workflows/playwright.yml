@@ -8,31 +8,21 @@
 #   4. Dynamic Metrics Extraction & Stakeholder Notification
 # ==============================================================================
 
-name: Playwright Test Pipeline
+name: Playwright e2e Test Pipeline
 
 on:
-  # Enables manual execution via GitHub UI/API for ad-hoc testing
   workflow_dispatch:
-
-  # Quality Gate: Runs fast smoke suite on PRs targeting main/master
   pull_request:
     branches: [main, master]
-
-  # Regression Gate: Runs multi-browser suite on merge to main/master
   push:
     branches: [main, master]
-
-  # Scheduled Audit: Full test suite execution (Tue/Thu at 02:00 UTC)
   schedule:
     - cron: "0 2 * * 2,4"
 
-# Prevent concurrent runs on the same branch from stepping on each other's 
-# deployment state while conserving CI runner quota.
 concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: false
 
-# Granular GITHUB_TOKEN permissions required for GitHub Pages publishing
 permissions:
   contents: write
   pages: write
@@ -41,15 +31,16 @@ permissions:
 jobs:
   # ============================================================================
   # JOB 1: SMOKE TESTS (PR Gate)
-  # Target execution time: < 10 mins via 2-way sharding
   # ============================================================================
   smoke-tests:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
     timeout-minutes: 30
 
     strategy:
-      fail-fast: false # Ensures failure in shard 1 doesn't terminate shard 2 prematurely
+      fail-fast: false
       matrix:
         shardIndex: [1, 2]
         shardTotal: [2]
@@ -67,16 +58,6 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Cache Playwright browser binaries to accelerate setup across workflow runs
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright Browsers & Dependencies
-        run: npx playwright install --with-deps
-
       - name: Clean Test Results Directories
         run: |
           rm -rf allure-results test-results 
@@ -93,7 +74,6 @@ jobs:
           --project=smoke-chromium \
           --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
-      # Attaches defect classification rules to raw result set
       - name: Copy Allure Categories
         if: always()
         run: |
@@ -107,7 +87,6 @@ jobs:
             echo "::warning::Allure results directory missing."
           fi
 
-      # Upload raw Allure XML/JSON data for downstream aggregation in merge-report
       - name: Upload Raw Allure Results Artifact
         uses: actions/upload-artifact@v4
         if: always()
@@ -116,7 +95,6 @@ jobs:
           path: allure-results/
           retention-days: 60
 
-      # Upload native Playwright JSON report artifacts for email reporting & log debugging
       - name: Upload Playwright JSON Report Artifact
         uses: actions/upload-artifact@v4
         if: always()
@@ -127,11 +105,12 @@ jobs:
 
   # ============================================================================
   # JOB 2: REGRESSION TESTS (Post-Merge Validation)
-  # Cross-browser matrix execution sharded 3 ways
   # ============================================================================
   regression-tests:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
     timeout-minutes: 30
 
     strategy:
@@ -152,15 +131,6 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
-
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright Browsers & Dependencies
-        run: npx playwright install --with-deps
 
       - name: Clean Test Results Directories
         run: |
@@ -211,11 +181,12 @@ jobs:
 
   # ============================================================================
   # JOB 3: NIGHTLY FULL SUITE (Scheduled Health Check)
-  # Deep-coverage execution sharded 4 ways
   # ============================================================================
   nightly-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
     timeout-minutes: 60
 
     strategy:
@@ -236,15 +207,6 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
-
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright Browsers & Dependencies
-        run: npx playwright install --with-deps
 
       - name: Clean Test Results Directories
         run: |
@@ -292,19 +254,14 @@ jobs:
 
   # ============================================================================
   # JOB 4: REPORT CONSOLIDATION & PUBLISHING
-  # Merges raw results across shards and deploys live Allure Dashboard to gh-pages.
-  # Acts as the single source of truth for deployments to eliminate race conditions.
   # ============================================================================
   merge-report:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     needs:
       - smoke-tests
       - regression-tests
       - nightly-tests
-
-    # Executes if at least one upstream execution job ran (ignoring skipped jobs)
     if: >
       always() &&
       !cancelled() &&
@@ -313,7 +270,6 @@ jobs:
         needs.regression-tests.result != 'skipped' ||
         needs.nightly-tests.result != 'skipped'
       )
-
     permissions:
       contents: write
       pages: write
@@ -322,7 +278,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Wildcard pattern matches results regardless of which stage ran (smoke/regression/nightly)
       - name: Download Raw Allure Results
         uses: actions/download-artifact@v4
         with:
@@ -330,7 +285,6 @@ jobs:
           path: all-results
           merge-multiple: true
 
-      # Guard step prevents generating corrupt empty reports if test execution aborted early
       - name: Validate Allure Results Exist
         run: |
           if [ ! -d "all-results" ] || [ -z "$(ls -A all-results)" ]; then
@@ -338,7 +292,6 @@ jobs:
             exit 0
           fi
 
-      # Compiles static HTML dashboard incorporating history trend points
       - name: Build Allure Report
         uses: simple-elf/allure-report-action@master
         if: always()
@@ -351,7 +304,6 @@ jobs:
           allure_version: 2.29.0
           keep_reports: 30
 
-      # Deploys compiled report tree to GitHub Pages (bypasses PR builds to prevent site pollution)
       - name: Deploy Report to Github Pages
         if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
@@ -359,13 +311,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history
           keep_files: true
-          force_orphan: true # Isolates commit history to avoid Git lock conflicts
+          force_orphan: true
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
 
   # ============================================================================
   # JOB 5: EMAIL NOTIFICATION DISPATCH
-  # Downloads merged JSON report metrics and dispatches HTML email via TypeScript script
   # ============================================================================
   send-email-notification:
     runs-on: ubuntu-latest
