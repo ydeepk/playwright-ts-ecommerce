@@ -1,4 +1,6 @@
 import * as allure from 'allure-js-commons';
+import { ROUTES } from '../../src/constants';
+import { APP_MESSAGES } from '../../src/constants/messages.constants';
 import { test } from '../../src/fixtures/base.fixture';
 
 // Regression suite for PIM employee lifecycle
@@ -7,12 +9,12 @@ test.describe('@regression PIM Employee Lifecycle', () => {
 
     test.beforeEach(async ({ page }) => {
 
-        await page.goto('/');
+        await page.goto(ROUTES.HOME);
 
         // Ensures session validity before test execution
         // Fails early to prevent cascading false failures
-        if (page.url().includes('auth/login')) {
-            throw new Error('Session expired. Regenerate auth state.');
+        if (page.url().includes(ROUTES.AUTH_LOGIN)) {
+            throw new Error(APP_MESSAGES.ERRORS.SESSION_EXPIRED);
         }
     });
 

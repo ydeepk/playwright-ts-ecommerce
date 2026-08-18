@@ -1,4 +1,6 @@
 import * as allure from 'allure-js-commons';
+import { ROUTES } from '../../src/constants';
+import { APP_MESSAGES } from '../../src/constants/messages.constants';
 import { test } from '../../src/fixtures/base.fixture';
 
 test.describe('@smoke Navigation to PIM', () => {
@@ -6,15 +8,15 @@ test.describe('@smoke Navigation to PIM', () => {
     test.beforeEach(async ({ page }) => {
         // This 'wakes up' the browser and takes it to the site
         // Because of Storage State, it will skip the login screen automatically
-        await page.goto('/'); 
+        await page.goto(ROUTES.HOME); 
 
         // Defensive check: ensures session is still valid
         // If redirected to login → storageState expired or missing
-        if (page.url().includes('auth/login')) {
+        if (page.url().includes(ROUTES.AUTH_LOGIN)) {
 
             // Fail fast instead of continuing with broken state
             // Avoids misleading failures later in test steps
-            throw new Error("Session expired. Please regenerate auth state.");
+            throw new Error(APP_MESSAGES.ERRORS.SESSION_EXPIRED);
         }
     });
 
