@@ -27,12 +27,12 @@
     "@types/nodemailer": "^8.0.1",
     "allure-commandline": "^2.38.1",
     "allure-playwright": "^3.7.1",
+    "nodemailer": "^9.0.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "nodemailer": "^9.0.5"
+    "dotenv": "^17.4.2"
   }
 }
