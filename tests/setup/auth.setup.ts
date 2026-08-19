@@ -13,6 +13,8 @@ setup('Authenticate', async ({ page, loginPage ,browserName }) => {
     // Must succeed → otherwise all dependent tests will fail
     await loginPage.navigate();
 
+    await page.waitForLoadState('networkidle');
+
     // Perform login with valid credentials
     // Hardcoded for demo → should be replaced with env variables in real projects
     await loginPage.login(USERS.ADMIN.username, USERS.ADMIN.password);
