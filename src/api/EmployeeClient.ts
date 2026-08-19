@@ -11,14 +11,9 @@ export class EmployeeClient {
    * @param lastName Employee's last name
    * @param employeeId Unique tracking identifier
    */
-  async createEmployee(
-    firstName: string,
-    lastName: string,
-    employeeId: string,
-  ) {
-    const response = await this.request.post(
-      API_ENDPOINTS.CREATE.NEW_EMPLOYEE,
-      {
+  async createEmployee(firstName: string, lastName: string, employeeId: string) {
+
+    const response = await this.request.post( API_ENDPOINTS.CREATE.NEW_EMPLOYEE, {
         data: {
           firstName,
           middleName: "",

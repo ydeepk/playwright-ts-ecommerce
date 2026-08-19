@@ -40,6 +40,7 @@ interface PlaywrightJSONReport {
 interface ProjectMetrics {
   total: number;
   passed: number;
+  flaky: number;
   failed: number;
   skipped: number;
 }
@@ -78,6 +79,7 @@ function parseReports(resultsDir: string) {
   let totalDurationMs = 0;
   let totalTests = 0;
   let passedTests = 0;
+  let flakyTests = 0;
   let failedTests = 0;
   let skippedTests = 0;
 
@@ -113,18 +115,25 @@ function parseReports(resultsDir: string) {
             spec.tests.forEach((test) => {
               const proj = test.projectName || 'default';
               if (!projectMap[proj]) {
-                projectMap[proj] = { total: 0, passed: 0, failed: 0, skipped: 0 };
+                projectMap[proj] = { total: 0, passed: 0, flaky: 0, failed: 0, skipped: 0 };
               }
 
               totalTests++;
               projectMap[proj].total++;
 
               const isPass = test.status === 'expected';
+              const isFlaky = test.status === 'flaky';
               const isFail = test.status === 'unexpected';
               const isSkip = test.status === 'skipped';
 
               if (isPass) {
                 passedTests++;
+                projectMap[proj].passed++;
+                moduleMap[targetModuleKey].passed++;
+              } else if (isFlaky) {
+                flakyTests++;
+                passedTests++; // Flaky tests eventually passed
+                projectMap[proj].flaky++;
                 projectMap[proj].passed++;
                 moduleMap[targetModuleKey].passed++;
               } else if (isFail) {
@@ -135,6 +144,11 @@ function parseReports(resultsDir: string) {
                 skippedTests++;
                 projectMap[proj].skipped++;
                 moduleMap[targetModuleKey].skipped++;
+              } else {
+                // Unexpected states (timedOut, interrupted) -> treat as failed
+                failedTests++;
+                projectMap[proj].failed++;
+                moduleMap[targetModuleKey].failed++;
               }
             });
           });
@@ -160,6 +174,7 @@ function parseReports(resultsDir: string) {
   return {
     totalTests,
     passedTests,
+    flakyTests,
     failedTests,
     skippedTests,
     passRateNum,
@@ -194,78 +209,73 @@ function getBrowserFriendlyName(projName: string): string {
   return projName;
 }
 
-/**
- * Enterprise QA Lead Insight Engine
- * Dynamically builds context-aware recommendations based on complex suite execution states
- */
 function generateQaLeadInsights(metrics: ReturnType<typeof parseReports>): string[] {
   const insights: string[] = [];
-  const { totalTests, passedTests, failedTests, skippedTests, passRateNum, durationMinutes, moduleMap } = metrics;
+  const { totalTests, passedTests, flakyTests, failedTests, skippedTests, passRateNum, durationMinutes, moduleMap } = metrics;
 
-  // 1. Suite Scale & Execution Context
-  const scaleText = totalTests >= 150 ? 'Full Mass Regression' : totalTests >= 50 ? 'Standard Regression' : 'Targeted Smoke/Sanity';
+  const explicitRunType = (process.env.TEST_RUN_TYPE || '').toLowerCase();
+  let scaleText = 'Targeted Run';
+  if (explicitRunType.includes('regression')) scaleText = 'Full Regression Suite';
+  else if (explicitRunType.includes('smoke')) scaleText = 'Smoke Verification';
+  else if (explicitRunType.includes('nightly')) scaleText = 'Nightly Scheduled Build';
+  else {
+    scaleText = totalTests >= 150 ? 'Full Mass Regression' : totalTests >= 50 ? 'Standard Regression' : 'Targeted Smoke/Sanity';
+  }
 
-  // 2. Analyze Affected Modules
   const failedModules = Object.values(moduleMap)
     .filter((m) => m.failed > 0)
     .map((m) => m.name);
 
-  // 3. Scenario Matrix Conditions
   if (totalTests === 0) {
-    insights.push(`<b>🚨 NO TEST ARTIFACTS FOUND:</b> Pipeline completed without generating test results. Verify artifact paths and Playwright execution logs.`);
+    insights.push(`<b>🚨 NO TEST ARTIFACTS FOUND:</b> Pipeline completed without generating test results. Verify artifact paths.`);
     return insights;
   }
 
-  // CONDITION A: 100% Failure / Blocker / Environment Outage
+  // CONDITION 1: Global Blocker
   if (passedTests === 0 && failedTests > 0) {
-    insights.push(`<b>🚨 CRITICAL ENVIRONMENT / SETUP BLOCKER:</b> 100% of tests failed (${failedTests}/${totalTests}). Indicates server downtime, broken deployment, or global authentication setup failure.`);
-    insights.push(`<b>🛑 IMMEDIATE ACTION:</b> Do not re-run suite until base environment connectivity and admin credentials are verified.`);
-  }
-  // CONDITION B: High Regression Rate (>30% failure rate or >30 failures in 200+ suite)
-  else if (passRateNum < 70) {
-    insights.push(`<b>🔥 SEVERE REGRESSION DETECTED (${scaleText}):</b> ${failedTests} failing tests out of ${totalTests} (${(100 - passRateNum).toFixed(1)}% failure rate). High defect density across multiple components.`);
-    if (failedModules.length > 0) {
-      insights.push(`<b>📍 IMPACTED MODULES:</b> Failures concentrated in <b>${failedModules.join(', ')}</b>.`);
-    }
-  }
-  // CONDITION C: Moderate Regressions / Targeted Defects
+    insights.push(`<b>🚨 CRITICAL ENVIRONMENT BLOCKER (${scaleText}):</b> 100% of tests failed (${failedTests}/${totalTests}). Check environment connectivity or base setup.`);
+  } 
+  // CONDITION 2: Hard Regressions
   else if (failedTests > 0) {
-    insights.push(`<b>⚠️ TARGETED REGRESSIONS (${metrics.passRate}% Pass Rate):</b> Multi-node parallel execution completed in <b>${durationMinutes} mins</b> with ${failedTests} failed scenario(s).`);
+    insights.push(`<b>⚠️ REGRESSION DETECTED (${scaleText} — ${metrics.passRate}% Pass Rate):</b> Execution completed in <b>${durationMinutes} mins</b> with ${failedTests} hard failure(s).`);
     if (failedModules.length > 0) {
-      insights.push(`<b>📍 IMPACTED MODULES:</b> Defect scope isolated to <b>${failedModules.join(', ')}</b>.`);
+      insights.push(`<b>📍 IMPACTED MODULES:</b> Failures isolated to <b>${failedModules.join(', ')}</b>.`);
     }
-    insights.push(`<b>🔍 RECOMMENDATION:</b> Review Allure trace viewer for DOM snapshots, network payloads, and console logs before PR merge.`);
-  }
-  // CONDITION D: 100% Pass Rate / Green Build
+  } 
+  // CONDITION 3: All Passed, but Flaky Retries Occurred
+  else if (flakyTests > 0) {
+    insights.push(`<b>⚠️ STABLE WITH FLAKINESS (${scaleText}):</b> All test scenarios eventually passed, but <b>${flakyTests} test(s)</b> required execution retries.`);
+    insights.push(`<b>🔍 RECOMMENDATION:</b> Review WebKit trace logs to resolve intermittent locator or network timeouts.`);
+  } 
+  // CONDITION 4: Clean Green Build
   else {
-    insights.push(`<b>✅ STABLE GREEN BUILD (${scaleText}):</b> 100% pass rate achieved across ${totalTests} total test scenarios.`);
-    insights.push(`<b>⚡ PERFORMANCE:</b> Multi-machine parallel runner optimized total suite runtime down to <b>${durationMinutes} minutes</b>.`);
-    insights.push(`<b>🚀 DEPLOYMENT CLEARED:</b> Zero regressions detected in core functional modules. Cleared from QA perspective.`);
+    insights.push(`<b>✅ STABLE GREEN BUILD (${scaleText}):</b> 100% clean pass rate achieved across ${totalTests} test scenarios.`);
+    insights.push(`<b>⚡ PERFORMANCE:</b> Multi-machine runner optimized suite runtime down to <b>${durationMinutes} minutes</b>.`);
+    insights.push(`<b>🚀 DEPLOYMENT CLEARED:</b> Zero regressions or flaky tests detected.`);
   }
 
-  // 4. Skipped / Timed Out Warnings
   if (skippedTests > 0) {
-    insights.push(`<b>⏭️ SKIPPED TESTS:</b> ${skippedTests} test(s) skipped due to setup dependencies or active test flags.`);
+    insights.push(`<b>⏭️ SKIPPED TESTS:</b> ${skippedTests} test(s) skipped.`);
   }
 
   return insights;
 }
 
 // ==============================================================================
-// 3. GOOGLE MODERN / ALLURE HYBRID HTML EMAIL BUILDER
+// 3. HTML EMAIL BUILDER
 // ==============================================================================
 function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
   const envName = process.env.TEST_ENV || 'QA-Staging';
   const trigger = getExecutionTrigger();
-  
-  // Status Colors (Google Material Design Palette)
-  const isPass = metrics.failedTests === 0 && metrics.totalTests > 0;
-  const overallStatus = isPass ? 'PASSED' : metrics.passedTests === 0 ? 'CRITICAL BLOCKER' : 'REGRESSION DETECTED';
-  const headerBg = isPass ? '#1e8e3e' : metrics.passedTests === 0 ? '#d93025' : '#f9ab00';
-  const badgeBg = isPass ? '#e6f4ea' : metrics.passedTests === 0 ? '#fce8e6' : '#fef7e0';
-  const badgeTextColor = isPass ? '#137333' : metrics.passedTests === 0 ? '#c5221f' : '#b06000';
 
-  // Dynamic GitHub Pages & Repository URL Resolution
+  const isCleanPass = metrics.failedTests === 0 && metrics.flakyTests === 0 && metrics.totalTests > 0;
+  const isFlakyPass = metrics.failedTests === 0 && metrics.flakyTests > 0;
+  
+  const overallStatus = isCleanPass ? 'PASSED' : isFlakyPass ? 'PASSED (FLAKY)' : metrics.passedTests === 0 ? 'BLOCKED' : 'REGRESSION DETECTED';
+  const headerBg = isCleanPass ? '#1e8e3e' : isFlakyPass ? '#f9ab00' : '#d93025';
+  const badgeBg = isCleanPass ? '#e6f4ea' : isFlakyPass ? '#fef7e0' : '#fce8e6';
+  const badgeTextColor = isCleanPass ? '#137333' : isFlakyPass ? '#b06000' : '#c5221f';
+
   const repoFullName = process.env.GITHUB_REPOSITORY || 'ydeepk/playwright-ts-ecommerce';
   const [repoOwner, repoName] = repoFullName.split('/');
 
@@ -276,18 +286,19 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
     .map((item) => `<li style="margin-bottom: 8px; color: #3c4043; font-size: 13px; line-height: 1.5;">${item}</li>`)
     .join('');
 
-  // Project Breakdown Rows
   const projectRows = Object.entries(metrics.projectMap)
     .map(([proj, stats]) => {
       const rate = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(0) : '0';
       const failColor = stats.failed > 0 ? '#d93025' : '#5f6368';
+      const passText = stats.flaky > 0 ? `${stats.passed} <span style="font-size:10px; color:#b06000;">(${stats.flaky} flaky)</span>` : `${stats.passed}`;
+      
       return `
         <tr>
           <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; font-size: 13px; color: #202124;">
             <b>${getBrowserFriendlyName(proj)}</b> <span style="font-size: 11px; color: #70757a;">(${proj})</span>
           </td>
           <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #202124;">${stats.total}</td>
-          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #1e8e3e; font-weight: 600;">${stats.passed}</td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #1e8e3e; font-weight: 600;">${passText}</td>
           <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: ${failColor}; font-weight: 600;">${stats.failed}</td>
           <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; color: #5f6368;">${stats.skipped}</td>
           <td style="padding: 12px 10px; border-bottom: 1px solid #e8eaed; text-align: center; font-size: 13px; font-weight: 600; color: #202124;">${rate}%</td>
@@ -295,7 +306,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
     })
     .join('');
 
-  // Module Breakdown Rows
   const moduleRows = Object.values(metrics.moduleMap)
     .filter((m) => m.scenarios.size > 0)
     .map((m) => {
@@ -328,8 +338,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
       .badge { display: inline-block; padding: 6px 14px; font-weight: 600; border-radius: 16px; font-size: 12px; background-color: ${badgeBg}; color: ${badgeTextColor}; margin-top: 12px; letter-spacing: 0.3px; }
       
       .content { padding: 20px 24px; }
-      
-      /* Google Stat Cards Grid */
       .card-grid { display: table; width: 100%; table-layout: fixed; margin-bottom: 20px; }
       .card { display: table-cell; background: #f8f9fa; padding: 14px 8px; text-align: center; border-radius: 8px; border: 1px solid #e8eaed; }
       .card-val { font-size: 22px; font-weight: 700; color: #202124; }
@@ -344,16 +352,13 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
       .btn-primary { display: inline-block; padding: 10px 20px; background-color: #1a73e8; color: #ffffff !important; text-decoration: none; border-radius: 20px; font-weight: 500; font-size: 13px; box-shadow: 0 1px 2px rgba(60,64,67,0.3); margin-right: 8px; margin-bottom: 8px; }
       .btn-secondary { display: inline-block; padding: 10px 20px; background-color: #ffffff; color: #1a73e8 !important; text-decoration: none; border-radius: 20px; font-weight: 500; font-size: 13px; border: 1px solid #dadce0; margin-bottom: 8px; }
 
-      /* QA Insights Callout Box */
       .insights-box { background-color: #f8f9fa; border-left: 4px solid #1a73e8; padding: 16px 16px 8px 16px; border-radius: 0 8px 8px 0; margin-top: 8px; }
 
-      /* Footer & Signature */
       .footer { background-color: #f8f9fa; padding: 20px 24px; border-top: 1px solid #f1f3f4; font-size: 12px; color: #5f6368; }
       .signature { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e8eaed; }
       .signature-name { font-weight: 600; color: #202124; font-size: 13px; margin: 0; }
       .signature-title { color: #5f6368; font-size: 12px; margin: 2px 0 0 0; }
 
-      /* Mobile Screen Adjustments */
       @media only screen and (max-width: 600px) {
         body { padding: 8px; }
         .wrapper { border-radius: 8px; }
@@ -375,7 +380,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
       </div>
 
       <div class="content">
-        <!-- STATS CARDS -->
         <div class="card-grid">
           <div class="card">
             <div class="card-val">${metrics.totalTests}</div>
@@ -399,7 +403,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
           </div>
         </div>
 
-        <!-- DASHBOARD BUTTONS -->
         <div class="section-header">Allure & Trace Dashboards</div>
         <p style="font-size: 13px; color: #5f6368; margin: 0 0 12px 0;">Access interactive Allure report, video recordings, and step-by-step trace viewer logs:</p>
         <div class="btn-container">
@@ -407,7 +410,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
           <a href="${allureBaseUrl}/" class="btn-secondary" target="_blank">📈 Historical Trends</a>
         </div>
 
-        <!-- QA LEAD INSIGHTS -->
         <div class="section-header">QA Lead Insights</div>
         <div class="insights-box">
           <ul style="margin: 0; padding-left: 18px;">
@@ -415,7 +417,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
           </ul>
         </div>
 
-        <!-- APPLICATION MODULES -->
         <div class="section-header">Functional Modules Coverage</div>
         <table>
           <thead>
@@ -430,7 +431,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
           </tbody>
         </table>
 
-        <!-- BROWSER COVERAGE -->
         <div class="section-header">Browser Platform Matrix</div>
         <table>
           <thead>
@@ -449,7 +449,6 @@ function buildHtmlReport(metrics: ReturnType<typeof parseReports>) {
         </table>
       </div>
 
-      <!-- FOOTER & SIGNATURE -->
       <div class="footer">
         Automated report generated by <b>Playwright CI/CD Pipeline</b>.<br>
         Repository: <a href="${githubRepoUrl}" style="color: #1a73e8; text-decoration: none;">${repoFullName}</a>
@@ -473,12 +472,15 @@ async function main() {
   const resultsDir = path.join(process.cwd(), 'test-results');
   const metrics = parseReports(resultsDir);
 
-  console.log(`📊 Aggregated Metrics: ${metrics.passedTests}/${metrics.totalTests} Passed (${metrics.passRate}%) in ${metrics.durationMinutes} mins.`);
+  console.log(`📊 Aggregated Metrics: ${metrics.passedTests}/${metrics.totalTests} Passed (${metrics.flakyTests} Flaky) in ${metrics.durationMinutes} mins.`);
 
   const htmlContent = buildHtmlReport(metrics);
   const trigger = getExecutionTrigger();
   const envName = process.env.TEST_ENV || 'QA-Staging';
-  const overallStatus = metrics.failedTests === 0 && metrics.totalTests > 0 ? 'PASSED' : metrics.passedTests === 0 ? 'BLOCKED' : 'FAILED';
+  
+  const isCleanPass = metrics.failedTests === 0 && metrics.flakyTests === 0 && metrics.totalTests > 0;
+  const isFlakyPass = metrics.failedTests === 0 && metrics.flakyTests > 0;
+  const overallStatus = isCleanPass ? 'PASSED' : isFlakyPass ? 'PASSED (FLAKY)' : metrics.passedTests === 0 ? 'BLOCKED' : 'FAILED';
 
   const subject = `[${overallStatus}] OrangeHRM E2E Test Summary — ${envName} (${trigger.label})`;
 
